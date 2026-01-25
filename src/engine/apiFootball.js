@@ -47,14 +47,21 @@ class ApiFootballService {
   }
 
   async getTeamData(teamName) {
-    // 1. Trouver l'ID de l'équipe
-    const team = await this.findTeamId(teamName);
+  console.log('[API] getTeamData START:', teamName);
+  
+  // 1. Trouver l'ID de l'équipe
+  const team = await this.findTeamId(teamName);
+  console.log('[API] Team found:', team.id, team.name);
+  
+  // 2. Récupérer les 7 derniers matchs
+  console.log('[API] Fetching last 7 matches for team ID:', team.id);
+  const fixtures = await this.getLastMatches(team.id, 7);
+  console.log('[API] Fixtures received:', fixtures.length);
+  
+  // 3. Pour chaque match, récupérer les événements
+  console.log('[API] Fetching events for each match...');
+  const matchesWithEvents = await Promise.all(
     
-    // 2. Récupérer les 7 derniers matchs
-    const fixtures = await this.getLastMatches(team.id, 7);
-    
-    // 3. Pour chaque match, récupérer les événements
-    const matchesWithEvents = await Promise.all(
       fixtures.map(async (fixture) => {
         const events = await this.getMatchEvents(fixture.fixture.id);
         
