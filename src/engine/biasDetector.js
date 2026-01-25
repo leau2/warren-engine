@@ -220,4 +220,4 @@ class BiasDetector {
   }
 }
 
-module.exports = BiasDetector;
+export default BiasDetector;
