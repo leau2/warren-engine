@@ -3,6 +3,7 @@
 
 import EloEngine from './eloEngine.js';
 import BiasDetector from './biasDetector.js';
+import eloData from './elo.json' assert { type: 'json' };
 
 class WarrenAnalyzer {
   constructor() {
@@ -10,16 +11,16 @@ class WarrenAnalyzer {
     this.biasDetector = new BiasDetector();
   }
 
-  analyze(team1Data, team2Data, eloData) {
+  analyze(team1Data, team2Data) {
     // Analyser chaque équipe
-    const team1Analysis = this.analyzeTeam(team1Data, eloData);
-    const team2Analysis = this.analyzeTeam(team2Data, eloData);
+    const team1Analysis = this.analyzeTeam(team1Data);
+    const team2Analysis = this.analyzeTeam(team2Data);
     
     // Stats BTTS/Over
     const stats = this.calculateStats(team1Analysis, team2Analysis);
     
     // Générer verdict
-    const verdict = this.generateVerdict(team1Analysis, team2Analysis, stats, eloData);
+    const verdict = this.generateVerdict(team1Analysis, team2Analysis, stats);
     
     return {
       team1: team1Analysis,
@@ -33,7 +34,7 @@ class WarrenAnalyzer {
     };
   }
 
-  analyzeTeam(teamData, eloData) {
+  analyzeTeam(teamData) {
     const teamElo = this.findElo(teamData.teamName);
     const matches = [];
     
@@ -45,7 +46,7 @@ class WarrenAnalyzer {
     
     // Analyser chaque match
     teamData.matches.forEach(match => {
-      const opponentElo = this.findElo(match.opponent, eloData);
+      const opponentElo = this.findElo(match.opponent);
       const eloGap = this.eloEngine.calculateGap(teamElo, opponentElo);
       
       // Détecter biais
@@ -181,7 +182,7 @@ class WarrenAnalyzer {
     };
   }
 
-  generateVerdict(team1, team2, stats, eloData) {
+  generateVerdict(team1, team2, stats) {
     const eloGap = this.eloEngine.calculateGap(team1.elo, team2.elo);
     const isFavorite = team1.elo > team2.elo;
     const favorite = isFavorite ? team1 : team2;
@@ -279,29 +280,21 @@ class WarrenAnalyzer {
   }
 
   findElo(teamName) {
-  // Charger le fichier ELO JSON
-  const eloData = require('../data/elo.json');
-  
-  // Normaliser le nom
-  const normalized = teamName.trim();
-  
-  // Chercher dans le JSON (recherche exacte puis fuzzy)
-  if (eloData[normalized]) {
-    return eloData[normalized];
-  }
-  
-  // Recherche insensible à la casse
-  for (const [team, elo] of Object.entries(eloData)) {
-    if (team.toLowerCase() === normalized.toLowerCase()) {
-      return elo;
-    }
-  }
-  
-  console.warn(`ELO non trouvé pour ${teamName}, utilise 1700 par défaut`);
-  return 1700;
-}
+    // eloData est déjà importé en haut du fichier
+    const normalized = teamName.trim();
     
-    // Par défaut si non trouvé
+    // Recherche exacte
+    if (eloData[normalized]) {
+      return eloData[normalized];
+    }
+    
+    // Recherche insensible à la casse
+    for (const [team, elo] of Object.entries(eloData)) {
+      if (team.toLowerCase() === normalized.toLowerCase()) {
+        return elo;
+      }
+    }
+    
     console.warn(`ELO non trouvé pour ${teamName}, utilise 1700 par défaut`);
     return 1700;
   }
