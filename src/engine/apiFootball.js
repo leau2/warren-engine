@@ -147,4 +147,4 @@ class ApiFootballService {
   }
 }
 
-module.exports = ApiFootballService;
+export default ApiFootballService;
