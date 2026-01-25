@@ -1,15 +1,19 @@
-// Vercel Serverless Function - Warren API Endpoint
-import ApiFootballService from '../src/engine/apiFootball.js';
-import WarrenAnalyzer from '../src/engine/analyzer.js';
-
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+  
+  // Allow GET for testing
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'API Warren Engine OK',
+      version: '1.0.0',
+      endpoints: { analyze: 'POST /api/analyze' }
+    });
   }
   
   if (req.method !== 'POST') {
@@ -17,61 +21,90 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { match, eloData, apiKey } = req.body;
+    const { match, eloData } = req.body;
     
-    if (!match || !eloData || !apiKey) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: match, eloData, apiKey' 
+    // Clé API depuis variable d'environnement Vercel
+    const apiKey = process.env.API_FOOTBALL_KEY;
+    
+    if (!apiKey) {
+      return res.status(500).json({ 
+        error: 'API_FOOTBALL_KEY non configurée sur Vercel' 
       });
     }
     
-    // Parse le match (ex: "Angers vs Marseille")
-    const teams = match.split(/\s+vs\s+|\s+-\s+/i);
+    console.log('Received:', { match, hasElo: !!eloData });
     
+    if (!match) {
+      return res.status(400).json({ 
+        error: 'Match requis',
+        format: 'Équipe1 vs Équipe2'
+      });
+    }
+    
+    // ELO optionnel (valeurs par défaut si vide)
+    const eloDataToUse = eloData || 'Default : 1700\nTeam1 : 1700\nTeam2 : 1700';
+    
+    // Parse match
+    const teams = match.split(/\s+vs\s+|\s+-\s+/i);
     if (teams.length !== 2) {
       return res.status(400).json({ 
-        error: 'Format match invalide. Utilisez "Équipe1 vs Équipe2"' 
+        error: 'Format invalide. Utilisez "Équipe1 vs Équipe2"' 
       });
     }
     
-    const [team1Name, team2Name] = teams.map(t => t.trim());
+    // Import dynamique
+    const { default: normalizeTeamName } = await import('../src/engine/teamNames.js');
+    const { default: ApiFootballService } = await import('../src/engine/apiFootball.js');
+    const { default: WarrenAnalyzer } = await import('../src/engine/analyzer.js');
     
-    console.log(`Analysing: ${team1Name} vs ${team2Name}`);
+    // Normaliser les noms d'équipes
+    const [team1Name, team2Name] = teams.map(t => normalizeTeamName(t));
     
-    // Initialiser API Football
+    console.log('Teams normalized:', team1Name, 'vs', team2Name);
+    
+    // Fetch data
     const apiService = new ApiFootballService(apiKey);
     
-    // Récupérer données des deux équipes en parallèle
+    console.log('Fetching team data...');
     const [team1Data, team2Data] = await Promise.all([
-      apiService.getTeamData(team1Name),
-      apiService.getTeamData(team2Name)
+      apiService.getTeamData(team1Name).catch(err => {
+        console.error('Error team1:', err.message);
+        return { teamName: team1Name, teamId: 0, matches: [] };
+      }),
+      apiService.getTeamData(team2Name).catch(err => {
+        console.error('Error team2:', err.message);
+        return { teamName: team2Name, teamId: 0, matches: [] };
+      })
     ]);
     
-    console.log(`Data fetched for both teams`);
+    console.log('Data fetched:', {
+      team1: team1Data.teamName,
+      team1Matches: team1Data.matches?.length || 0,
+      team2: team2Data.teamName,
+      team2Matches: team2Data.matches?.length || 0
+    });
     
-    // Analyser avec Warren Engine
+    // Analyze
     const analyzer = new WarrenAnalyzer();
-    const analysis = analyzer.analyze(team1Data, team2Data, eloData);
+    const analysis = analyzer.analyze(team1Data, team2Data, eloDataToUse);
     
-    console.log(`Analysis complete`);
+    console.log('Analysis complete');
     
     return res.status(200).json({
       success: true,
       data: analysis,
       meta: {
-        match: match,
-        timestamp: new Date().toISOString(),
-        apiRequestsUsed: 28 // Approximatif: 2 teams + 7 matches x 2 + 14 events
+        team1Matches: team1Data.matches?.length || 0,
+        team2Matches: team2Data.matches?.length || 0,
+        timestamp: new Date().toISOString()
       }
     });
     
   } catch (error) {
-    console.error('Warren Engine Error:', error);
-    
+    console.error('ERROR:', error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message
     });
   }
-};
+}
