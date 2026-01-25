@@ -34,7 +34,7 @@ class WarrenAnalyzer {
   }
 
   analyzeTeam(teamData, eloData) {
-    const teamElo = this.findElo(teamData.teamName, eloData);
+    const teamElo = this.findElo(teamData.teamName);
     const matches = [];
     
     let victories = 0;
