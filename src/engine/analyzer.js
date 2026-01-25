@@ -294,4 +294,4 @@ class WarrenAnalyzer {
   }
 }
 
-module.exports = WarrenAnalyzer;
+export default WarrenAnalyzer;
