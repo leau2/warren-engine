@@ -132,7 +132,7 @@ const WarrenEngineApp = () => {
         <div style={{ fontWeight: '600', fontSize: '0.875rem', marginBottom: '0.75rem', color: '#cbd5e1' }}>
           Derniers matchs :
         </div>
-        {team.matches.slice(0, 5).map((match, i) => (
+        {team.matches.slice(0, 7).map((match, i) => (
           <div key={i} style={{
             fontSize: '0.8rem',
             padding: '0.75rem',
