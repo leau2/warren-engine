@@ -1,8 +1,8 @@
 // Warren Engine - Main Analyzer
 // Coordonne toute l'analyse et applique la logique Warren
 
-const EloEngine = require('./eloEngine');
-const BiasDetector = require('./biasDetector');
+import EloEngine from './eloEngine.js';
+import BiasDetector from './biasDetector.js';
 
 class WarrenAnalyzer {
   constructor() {
