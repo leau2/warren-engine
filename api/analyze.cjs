@@ -1,8 +1,8 @@
 // Vercel Serverless Function - Warren API Endpoint
-const ApiFootballService = require('../src/engine/apiFootball');
-const WarrenAnalyzer = require('../src/engine/analyzer');
+import ApiFootballService from '../src/engine/apiFootball.js';
+import WarrenAnalyzer from '../src/engine/analyzer.js';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
