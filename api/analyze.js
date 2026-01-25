@@ -21,28 +21,25 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { match, eloData } = req.body;
-    
-    // Clé API depuis variable d'environnement Vercel
-    const apiKey = process.env.API_FOOTBALL_KEY;
-    
-    if (!apiKey) {
-      return res.status(500).json({ 
-        error: 'API_FOOTBALL_KEY non configurée sur Vercel' 
-      });
-    }
-    
-    console.log('Received:', { match, hasElo: !!eloData });
-    
-    if (!match) {
-      return res.status(400).json({ 
-        error: 'Match requis',
-        format: 'Équipe1 vs Équipe2'
-      });
-    }
-    
-    // ELO optionnel (valeurs par défaut si vide)
-    const eloDataToUse = eloData || 'Default : 1700\nTeam1 : 1700\nTeam2 : 1700';
+    const { match } = req.body;
+
+// Clé API depuis variable d'environnement Vercel
+const apiKey = process.env.API_FOOTBALL_KEY;
+
+if (!apiKey) {
+  return res.status(500).json({ 
+    error: 'API_FOOTBALL_KEY non configurée sur Vercel' 
+  });
+}
+
+console.log('Received:', { match });
+
+if (!match) {
+  return res.status(400).json({ 
+    error: 'Match requis',
+    format: 'Équipe1 vs Équipe2'
+  });
+}
     
     // Parse match
     const teams = match.split(/\s+vs\s+|\s+-\s+/i);
@@ -86,7 +83,7 @@ export default async function handler(req, res) {
     
     // Analyze
     const analyzer = new WarrenAnalyzer();
-    const analysis = analyzer.analyze(team1Data, team2Data, eloDataToUse);
+    const analysis = analyzer.analyze(team1Data, team2Data);
     
     console.log('Analysis complete');
     
