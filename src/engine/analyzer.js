@@ -278,15 +278,28 @@ class WarrenAnalyzer {
     ];
   }
 
-  findElo(teamName, eloData) {
-    // Chercher dans les données ELO fournies
-    const lines = eloData.split('\n');
-    for (const line of lines) {
-      if (line.toLowerCase().includes(teamName.toLowerCase())) {
-        const match = line.match(/(\d{4})/);
-        if (match) return parseInt(match[1]);
-      }
+  findElo(teamName) {
+  // Charger le fichier ELO JSON
+  const eloData = require('../data/elo.json');
+  
+  // Normaliser le nom
+  const normalized = teamName.trim();
+  
+  // Chercher dans le JSON (recherche exacte puis fuzzy)
+  if (eloData[normalized]) {
+    return eloData[normalized];
+  }
+  
+  // Recherche insensible à la casse
+  for (const [team, elo] of Object.entries(eloData)) {
+    if (team.toLowerCase() === normalized.toLowerCase()) {
+      return elo;
     }
+  }
+  
+  console.warn(`ELO non trouvé pour ${teamName}, utilise 1700 par défaut`);
+  return 1700;
+}
     
     // Par défaut si non trouvé
     console.warn(`ELO non trouvé pour ${teamName}, utilise 1700 par défaut`);
