@@ -95,4 +95,4 @@ class EloEngine {
   }
 }
 
-module.exports = EloEngine;
+export default EloEngine;
