@@ -3,7 +3,7 @@
 
 import EloEngine from './eloEngine.js';
 import BiasDetector from './biasDetector.js';
-import eloData from './elo.json';
+import eloData from './elo.json' assert { type: 'json' };
 
 class WarrenAnalyzer {
   constructor() {
