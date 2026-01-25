@@ -1,4 +1,4 @@
-{
+export default {
   "1. FC Heidenheim": 1484,
   "1º de Agosto": 1499,
   "2 de Mayo": 1392,
