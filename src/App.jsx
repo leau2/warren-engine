@@ -2,15 +2,13 @@ import React, { useState } from 'react';
 
 const WarrenEngineApp = () => {
   const [matchInput, setMatchInput] = useState('');
-  const [eloData, setEloData] = useState('');
-  const [apiKey, setApiKey] = useState('3bc5a906aadb156a131de329d19c1d0b');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
   const analyzeMatch = async () => {
-    if (!matchInput.trim() || !eloData.trim()) {
-      setError('Veuillez remplir tous les champs');
+    if (!matchInput.trim()) {
+      setError('Veuillez saisir un match');
       return;
     }
 
@@ -23,9 +21,7 @@ const WarrenEngineApp = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          match: matchInput,
-          eloData: eloData,
-          apiKey: apiKey
+          match: matchInput
         })
       });
 
@@ -234,7 +230,7 @@ const WarrenEngineApp = () => {
             Analyse Football Autonome
           </h1>
           <p style={{ fontSize: '1.125rem', color: '#94a3b8' }}>
-            Propulsé par API-Football • Logique Warren codée • 0 dépendance IA
+            794 équipes ELO chargées • Propulsé par API-Football • Logique Warren codée
           </p>
         </div>
 
@@ -259,7 +255,7 @@ const WarrenEngineApp = () => {
               type="text"
               value={matchInput}
               onChange={(e) => setMatchInput(e.target.value)}
-              placeholder="Ex: Marseille vs PSG"
+              placeholder="Ex: Wolves vs Newcastle"
               disabled={isAnalyzing}
               style={{
                 width: '100%',
@@ -272,37 +268,13 @@ const WarrenEngineApp = () => {
                 outline: 'none'
               }}
             />
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              marginBottom: '0.75rem',
-              color: '#cbd5e1'
+            <div style={{ 
+              fontSize: '0.75rem', 
+              color: '#64748b', 
+              marginTop: '0.5rem' 
             }}>
-              📊 ELO Équipes
-            </label>
-            <textarea
-              value={eloData}
-              onChange={(e) => setEloData(e.target.value)}
-              placeholder={`Ex:\nMarseille : 1750\nPSG : 2050\nMonaco : 1920\nNice : 1780`}
-              disabled={isAnalyzing}
-              rows={6}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                fontSize: '0.95rem',
-                background: 'rgba(15, 23, 42, 0.8)',
-                border: '2px solid rgba(16, 185, 129, 0.5)',
-                borderRadius: '0.75rem',
-                color: '#e2e8f0',
-                fontFamily: 'monospace',
-                outline: 'none',
-                resize: 'vertical'
-              }}
-            />
+              💡 ELO chargé automatiquement depuis 794 équipes
+            </div>
           </div>
 
           <button
