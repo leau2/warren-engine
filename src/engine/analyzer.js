@@ -333,36 +333,6 @@ class WarrenAnalyzer {
       raisons: raisons,
       risques: this.generateRisks(team1, team2, eloGap)
     };
-  }
-  }
-  }
-    const reasons = [];
-    
-    // Ajouter note Warren
-    if (warrenAnalysis.straightWinAllowed) {
-      reasons.push(`✅ Warren valide victoire (${warrenAnalysis.decision.confidence}%)`);
-    }
-    
-    if (team1.fatigue) reasons.push(`${team1.teamName} fatigué`);
-    if (team2.fatigue) reasons.push(`${team2.teamName} fatigué`);
-    
-    if (team1.formeSummary.quality === 'Excellente') {
-      reasons.push(`${team1.teamName} en excellente forme`);
-    }
-    if (team2.formeSummary.quality === 'Excellente') {
-      reasons.push(`${team2.teamName} en excellente forme`);
-    }
-    
-    if (stats.over25.tendency === 'Over 2.5') {
-      reasons.push(`Tendance Over (${stats.over25.team1.percentage}% / ${stats.over25.team2.percentage}%)`);
-    }
-    
-    if (reasons.length < 3) {
-      reasons.push(`Écart ELO ${eloGap} points`);
-    }
-    
-    return reasons.slice(0, 4);
-  }
 
   formatEventsForWarren(events) {
     if (!events) return {};
