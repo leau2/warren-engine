@@ -118,7 +118,7 @@ const TEAM_NAMES = {
   'monchengladbach': 'Borussia Monchengladbach',
   'gladbach': 'Borussia Monchengladbach',
   'mainz': 'FSV Mainz 05',
-  'hoffenheim': 'Hoffenheim',
+  'hoffenheim': '1899 Hoffenheim',
   'cologne': '1. FC Köln',
   'koln': '1. FC Köln',
   'werder': 'Werder Bremen',
