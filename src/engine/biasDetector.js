@@ -502,6 +502,108 @@ class BiasDetector {
     if (score.team < score.opponent) return 'L';
     return 'D';
   }
+
+  // ============================================================================
+  // ANCIENNES MÉTHODES (pour compatibilité avec analyzer.js existant)
+  // ============================================================================
+
+  /**
+   * ANCIENNE MÉTHODE - Analyze Penalty (compatibilité)
+   * Retourne format ancien pour ne pas casser l'interface
+   */
+  analyzePenaltyOld(match, penaltyInfo) {
+    if (!penaltyInfo) return null;
+    
+    const { team: penTeam, isTeam, minute } = penaltyInfo;
+    const { score, result } = match;
+    
+    // Calculer score sans penalty
+    let scoreWithout = { ...score };
+    if (isTeam) {
+      scoreWithout.team -= 1;
+    } else {
+      scoreWithout.opponent -= 1;
+    }
+    
+    const resultWithout = this.getResult(match);
+    
+    return {
+      type: isTeam ? 'penalty_team' : 'penalty_adverse',
+      severity: 'MOYEN',
+      message: `Penalty ${minute}'`,
+      scoreReal: scoreWithout,
+      impact: 'Voir analyse Warren pour détails'
+    };
+  }
+
+  /**
+   * ANCIENNE MÉTHODE - Analyze Red Card (compatibilité)
+   */
+  analyzeRedCardOld(match, redCardInfo) {
+    if (!redCardInfo) return null;
+    
+    const { team: cardTeam, isTeam, minute } = redCardInfo;
+    const { result } = match;
+    
+    return {
+      type: isTeam ? 'rouge_team' : 'rouge_adverse',
+      severity: minute < 30 ? 'FORT' : minute >= 80 ? 'FAIBLE' : 'MOYEN',
+      message: `Rouge ${minute}'`,
+      impact: 'Voir analyse Warren pour détails'
+    };
+  }
+
+  /**
+   * ANCIENNE MÉTHODE - Analyze Goal 90+ (compatibilité)
+   */
+  analyzeGoal90PlusOld(match, goal90Info, eloGap) {
+    if (!goal90Info) return null;
+    
+    const { isTeam, minute } = goal90Info;
+    
+    return {
+      type: isTeam ? 'but90_marque' : 'but90_encaisse',
+      severity: 'POSITIF_LEGER',
+      message: `But ${minute}'`,
+      impact: 'Voir analyse Warren pour détails'
+    };
+  }
+
+  /**
+   * ANCIENNE MÉTHODE - Detect Fatigue (compatibilité)
+   */
+  detectFatigue(matches) {
+    if (!matches || matches.length < 3) return null;
+    
+    const dates = matches.map(m => new Date(m.date)).sort((a, b) => b - a);
+    let matchesIn10Days = 1;
+    
+    for (let i = 0; i < Math.min(dates.length - 1, 6); i++) {
+      const daysDiff = (dates[0] - dates[i + 1]) / (1000 * 60 * 60 * 24);
+      if (daysDiff <= 10) {
+        matchesIn10Days++;
+      }
+    }
+    
+    if (matchesIn10Days >= 3) {
+      return {
+        detected: true,
+        matchCount: matchesIn10Days,
+        period: '10 jours',
+        impact: 'Fatigue confirmée, performance réduite attendue',
+        severity: 'FORT'
+      };
+    }
+    
+    return null;
+  }
+
+  getResult(match) {
+    if (!match.score) return 'nul';
+    if (match.score.team > match.score.opponent) return 'victoire';
+    if (match.score.team < match.score.opponent) return 'defaite';
+    return 'nul';
+  }
 }
 
 export default BiasDetector;
