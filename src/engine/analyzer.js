@@ -333,6 +333,7 @@ class WarrenAnalyzer {
       raisons: raisons,
       risques: this.generateRisks(team1, team2, eloGap)
     };
+  }
 
   formatEventsForWarren(events) {
     if (!events) return {};
