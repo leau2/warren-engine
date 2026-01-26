@@ -21,25 +21,25 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { match } = req.body;
-
-// Clé API depuis variable d'environnement Vercel
-const apiKey = process.env.API_FOOTBALL_KEY;
-
-if (!apiKey) {
-  return res.status(500).json({ 
-    error: 'API_FOOTBALL_KEY non configurée sur Vercel' 
-  });
-}
-
-console.log('Received:', { match });
-
-if (!match) {
-  return res.status(400).json({ 
-    error: 'Match requis',
-    format: 'Équipe1 vs Équipe2'
-  });
-}
+    const { match, matchDate } = req.body;
+    
+    // Clé API depuis variable d'environnement Vercel
+    const apiKey = process.env.API_FOOTBALL_KEY;
+    
+    if (!apiKey) {
+      return res.status(500).json({ 
+        error: 'API_FOOTBALL_KEY non configurée sur Vercel' 
+      });
+    }
+    
+    console.log('Received:', { match, matchDate });
+    
+    if (!match) {
+      return res.status(400).json({ 
+        error: 'Match requis',
+        format: 'Équipe1 vs Équipe2'
+      });
+    }
     
     // Parse match
     const teams = match.split(/\s+vs\s+|\s+-\s+/i);
@@ -64,11 +64,11 @@ if (!match) {
     
     console.log('Fetching team data...');
     const [team1Data, team2Data] = await Promise.all([
-      apiService.getTeamData(team1Name).catch(err => {
+      apiService.getTeamData(team1Name, matchDate).catch(err => {
         console.error('Error team1:', err.message);
         return { teamName: team1Name, teamId: 0, matches: [] };
       }),
-      apiService.getTeamData(team2Name).catch(err => {
+      apiService.getTeamData(team2Name, matchDate).catch(err => {
         console.error('Error team2:', err.message);
         return { teamName: team2Name, teamId: 0, matches: [] };
       })
@@ -93,6 +93,7 @@ if (!match) {
       meta: {
         team1Matches: team1Data.matches?.length || 0,
         team2Matches: team2Data.matches?.length || 0,
+        matchDate: matchDate || 'current',
         timestamp: new Date().toISOString()
       }
     });
