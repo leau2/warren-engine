@@ -19,7 +19,7 @@ class WarrenAnalyzer {
     // Stats BTTS/Over
     const stats = this.calculateStats(team1Analysis, team2Analysis);
     
-    // Générer verdict
+    // Générer verdict (avec logique Warren en arrière-plan)
     const verdict = this.generateVerdict(team1Analysis, team2Analysis, stats);
     
     return {
@@ -49,17 +49,17 @@ class WarrenAnalyzer {
       const opponentElo = this.findElo(match.opponent);
       const eloGap = this.eloEngine.calculateGap(teamElo, opponentElo);
       
-      // Détecter biais
-      const penaltyBias = match.events.penalties.length > 0 
-        ? this.biasDetector.analyzePenalty(match, match.events.penalties[0])
+      // Détecter biais (anciennes méthodes de compatibilité)
+      const penaltyBias = match.events.penalties && match.events.penalties.length > 0 
+        ? this.biasDetector.analyzePenaltyOld(match, match.events.penalties[0])
         : null;
       
-      const redCardBias = match.events.redCards.length > 0
-        ? this.biasDetector.analyzeRedCard(match, match.events.redCards[0])
+      const redCardBias = match.events.redCards && match.events.redCards.length > 0
+        ? this.biasDetector.analyzeRedCardOld(match, match.events.redCards[0])
         : null;
       
-      const goal90Bias = match.events.goals90Plus.length > 0
-        ? this.biasDetector.analyzeGoal90Plus(match, match.events.goals90Plus[0], eloGap)
+      const goal90Bias = match.events.goals90Plus && match.events.goals90Plus.length > 0
+        ? this.biasDetector.analyzeGoal90PlusOld(match, match.events.goals90Plus[0], eloGap)
         : null;
       
       // Qualifier performance
@@ -128,12 +128,12 @@ class WarrenAnalyzer {
   summarizeForm(matches, fatigue) {
     const recentMatches = matches.slice(0, 5);
     const goodPerformances = recentMatches.filter(m => 
-      m.performance.stars.includes('⭐⭐⭐') || m.performance.stars.includes('⭐⭐')
+      m.performance?.stars && (m.performance.stars.includes('⭐⭐⭐') || m.performance.stars.includes('⭐⭐'))
     ).length;
     
     const biasedResults = recentMatches.filter(m =>
-      m.biases.penalty?.severity.includes('NEGATIF') ||
-      m.biases.redCard?.severity.includes('NEGATIF')
+      m.biases?.penalty?.severity?.includes('NEGATIF') ||
+      m.biases?.redCard?.severity?.includes('NEGATIF')
     ).length;
     
     let formQuality = 'Moyenne';
@@ -188,7 +188,76 @@ class WarrenAnalyzer {
     const favorite = isFavorite ? team1 : team2;
     const outsider = isFavorite ? team2 : team1;
     
-    // Règle fatigue
+    // NOUVELLE LOGIQUE WARREN : Analyser avec le nouveau système
+    const team1Elo = team1.elo;
+    const team2Elo = team2.elo;
+    
+    // Préparer données pour Warren
+    const team1Warren = { 
+      matches: team1.matches.map(m => ({ 
+        date: m.date, 
+        score: m.score,
+        events: this.formatEventsForWarren(m.events)
+      }))
+    };
+    const team2Warren = { 
+      matches: team2.matches.map(m => ({ 
+        date: m.date, 
+        score: m.score,
+        events: this.formatEventsForWarren(m.events)
+      }))
+    };
+    
+    // Analyser avec Warren
+    const warrenAnalysis = this.biasDetector.analyze(team1Warren, team2Warren, { eloGap });
+    
+    // Si Warren dit FLOU
+    if (warrenAnalysis.fuzzy) {
+      return {
+        '1x2': 'X',
+        confidence_1x2: 5,
+        btts: stats.btts.tendency,
+        confidence_btts: Math.min(9, Math.round((stats.btts.team1.percentage + stats.btts.team2.percentage) / 20)),
+        over: stats.over25.tendency,
+        confidence_over: Math.min(9, Math.round((stats.over25.team1.percentage + stats.over25.team2.percentage) / 20)),
+        score_attendu: '1-1',
+        scores_alternatifs: ['2-1', '1-2', '0-0'],
+        raisons: [
+          '⚠️ Warren détecte un match FLOU',
+          'Forme trop équilibrée pour conclure',
+          'Analyse H2H recommandée'
+        ],
+        risques: [
+          'Résultat imprévisible',
+          'Besoin de données supplémentaires'
+        ]
+      };
+    }
+    
+    // Si Warren INTERDIT victoire directe
+    if (!warrenAnalysis.straightWinAllowed) {
+      return {
+        '1x2': eloGap > 150 ? (isFavorite ? '1X' : 'X2') : 'X',
+        confidence_1x2: 6,
+        btts: stats.btts.tendency,
+        confidence_btts: Math.min(9, Math.round((stats.btts.team1.percentage + stats.btts.team2.percentage) / 20)),
+        over: stats.over25.tendency,
+        confidence_over: Math.min(9, Math.round((stats.over25.team1.percentage + stats.over25.team2.percentage) / 20)),
+        score_attendu: '1-1',
+        scores_alternatifs: ['2-1', '1-2', '2-2'],
+        raisons: warrenAnalysis.decision.reasons || [
+          'Warren interdit victoire directe',
+          'Asymétrie forme insuffisante',
+          'Sécuriser avec X2/DNB recommandé'
+        ],
+        risques: [
+          `${favorite.teamName} reste supérieur (+${eloGap} ELO)`,
+          'Match peut basculer'
+        ]
+      };
+    }
+    
+    // Règle fatigue (prioritaire sur Warren)
     if (favorite.fatigue && !outsider.fatigue) {
       return {
         '1x2': eloGap > 200 ? (isFavorite ? '1X' : 'X2') : 'X',
@@ -211,16 +280,19 @@ class WarrenAnalyzer {
       };
     }
     
-    // Logique normale
-    let prono1x2 = 'X';
-    let confidence = 6;
+    // Warren AUTORISE victoire directe
+    const warrenConfidence = warrenAnalysis.decision.confidence || 65;
     
-    if (eloGap > 250) {
+    // Logique ELO + Warren
+    let prono1x2 = 'X';
+    let confidence = Math.round(warrenConfidence / 10); // 65% -> 6.5
+    
+    if (eloGap > 250 && warrenConfidence >= 60) {
       prono1x2 = isFavorite ? '1' : '2';
-      confidence = 8;
-    } else if (eloGap > 150) {
+      confidence = Math.min(9, confidence + 1);
+    } else if (eloGap > 150 && warrenConfidence >= 55) {
       prono1x2 = isFavorite ? '1X' : 'X2';
-      confidence = 7;
+      confidence = Math.max(6, confidence);
     }
     
     return {
@@ -232,9 +304,72 @@ class WarrenAnalyzer {
       confidence_over: Math.min(9, Math.round((stats.over25.team1.percentage + stats.over25.team2.percentage) / 20)),
       score_attendu: this.estimateScore(team1, team2, stats),
       scores_alternatifs: this.alternativeScores(team1, team2),
-      raisons: this.generateReasons(team1, team2, stats, eloGap),
+      raisons: this.generateReasonsWithWarren(team1, team2, stats, eloGap, warrenAnalysis),
       risques: this.generateRisks(team1, team2, eloGap)
     };
+  }
+
+  generateReasonsWithWarren(team1, team2, stats, eloGap, warrenAnalysis) {
+    const reasons = [];
+    
+    // Ajouter note Warren
+    if (warrenAnalysis.straightWinAllowed) {
+      reasons.push(`✅ Warren valide victoire (${warrenAnalysis.decision.confidence}%)`);
+    }
+    
+    if (team1.fatigue) reasons.push(`${team1.teamName} fatigué`);
+    if (team2.fatigue) reasons.push(`${team2.teamName} fatigué`);
+    
+    if (team1.formeSummary.quality === 'Excellente') {
+      reasons.push(`${team1.teamName} en excellente forme`);
+    }
+    if (team2.formeSummary.quality === 'Excellente') {
+      reasons.push(`${team2.teamName} en excellente forme`);
+    }
+    
+    if (stats.over25.tendency === 'Over 2.5') {
+      reasons.push(`Tendance Over (${stats.over25.team1.percentage}% / ${stats.over25.team2.percentage}%)`);
+    }
+    
+    if (reasons.length < 3) {
+      reasons.push(`Écart ELO ${eloGap} points`);
+    }
+    
+    return reasons.slice(0, 4);
+  }
+
+  formatEventsForWarren(events) {
+    if (!events) return {};
+    
+    const formatted = {};
+    
+    if (events.penalties && events.penalties.length > 0) {
+      const pen = events.penalties[0];
+      formatted.penalty = {
+        isTeam: pen.team === 'team' || pen.isTeam === true,
+        minute: pen.minute?.toString() || "0"
+      };
+      formatted.penaltyOnlyGoal = pen.isOnlyGoal || false;
+    }
+    
+    if (events.redCards && events.redCards.length > 0) {
+      const red = events.redCards[0];
+      formatted.redCard = {
+        isTeam: red.team === 'team' || red.isTeam === true,
+        minute: parseInt(red.minute) || 0
+      };
+    }
+    
+    if (events.goals90Plus && events.goals90Plus.length > 0) {
+      const goal90 = events.goals90Plus[0];
+      formatted.goal90Plus = {
+        isTeam: goal90.team === 'team' || goal90.isTeam === true,
+        minute: goal90.minute?.toString() || "90+",
+        scoreBefore: goal90.scoreBefore || null
+      };
+    }
+    
+    return formatted;
   }
 
   estimateScore(team1, team2, stats) {
