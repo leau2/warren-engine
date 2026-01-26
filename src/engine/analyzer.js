@@ -184,104 +184,6 @@ class WarrenAnalyzer {
 
   generateVerdict(team1, team2, stats) {
     const eloGap = this.eloEngine.calculateGap(team1.elo, team2.elo);
-    const isFavorite = team1.elo > team2.elo;
-    const favorite = isFavorite ? team1 : team2;
-    const outsider = isFavorite ? team2 : team1;
-    
-    // NOUVELLE LOGIQUE WARREN : Analyser avec le nouveau système
-    const team1Elo = team1.elo;
-    const team2Elo = team2.elo;
-    
-    // Préparer données pour Warren
-    const team1Warren = { 
-      matches: team1.matches.map(m => ({ 
-        date: m.date, 
-        score: m.score,
-        events: this.formatEventsForWarren(m.events)
-      }))
-    };
-    const team2Warren = { 
-      matches: team2.matches.map(m => ({ 
-        date: m.date, 
-        score: m.score,
-        events: this.formatEventsForWarren(m.events)
-      }))
-    };
-    
-    // Analyser avec Warren
-    const warrenAnalysis = this.biasDetector.analyze(team1Warren, team2Warren, { eloGap });
-    
-    // Si Warren dit FLOU
-    if (warrenAnalysis.fuzzy) {
-      return {
-        '1x2': 'X',
-        confidence_1x2: 5,
-        btts: stats.btts.tendency,
-        confidence_btts: Math.min(9, Math.round((stats.btts.team1.percentage + stats.btts.team2.percentage) / 20)),
-        over: stats.over25.tendency,
-        confidence_over: Math.min(9, Math.round((stats.over25.team1.percentage + stats.over25.team2.percentage) / 20)),
-        score_attendu: '1-1',
-        scores_alternatifs: ['2-1', '1-2', '0-0'],
-        raisons: [
-          '⚠️ Warren détecte un match FLOU',
-          'Forme trop équilibrée pour conclure',
-          'Analyse H2H recommandée'
-        ],
-        risques: [
-          'Résultat imprévisible',
-          'Besoin de données supplémentaires'
-        ]
-      };
-    }
-    
-    // Si Warren INTERDIT victoire directe
-    if (!warrenAnalysis.straightWinAllowed) {
-      return {
-        '1x2': eloGap > 150 ? (isFavorite ? '1X' : 'X2') : 'X',
-        confidence_1x2: 6,
-        btts: stats.btts.tendency,
-        confidence_btts: Math.min(9, Math.round((stats.btts.team1.percentage + stats.btts.team2.percentage) / 20)),
-        over: stats.over25.tendency,
-        confidence_over: Math.min(9, Math.round((stats.over25.team1.percentage + stats.over25.team2.percentage) / 20)),
-        score_attendu: '1-1',
-        scores_alternatifs: ['2-1', '1-2', '2-2'],
-        raisons: warrenAnalysis.decision.reasons || [
-          'Warren interdit victoire directe',
-          'Asymétrie forme insuffisante',
-          'Sécuriser avec X2/DNB recommandé'
-        ],
-        risques: [
-          `${favorite.teamName} reste supérieur (+${eloGap} ELO)`,
-          'Match peut basculer'
-        ]
-      };
-    }
-    
-    // Règle fatigue (prioritaire sur Warren)
-    if (favorite.fatigue && !outsider.fatigue) {
-      return {
-        '1x2': eloGap > 200 ? (isFavorite ? '1X' : 'X2') : 'X',
-        confidence_1x2: 7,
-        btts: stats.btts.tendency,
-        confidence_btts: (stats.btts.team1.percentage + stats.btts.team2.percentage) / 20,
-        over: stats.over25.tendency,
-        confidence_over: (stats.over25.team1.percentage + stats.over25.team2.percentage) / 20,
-        score_attendu: '1-1',
-        scores_alternatifs: ['2-1', '1-2', '0-0'],
-        raisons: [
-          `${favorite.teamName} fatigué (${favorite.fatigue.matchCount} matchs en ${favorite.fatigue.period})`,
-          `${outsider.teamName} frais, peut résister`,
-          `Tendance ${stats.over25.tendency} (${stats.over25.team1.percentage}% / ${stats.over25.team2.percentage}%)`
-        ],
-        risques: [
-          `${favorite.teamName} reste supérieur (+${eloGap} ELO)`,
-          `${outsider.teamName} peut s'effondrer si ${favorite.teamName} attaque`
-        ]
-      };
-    }
-    
-    // Warren AUTORISE victoire directe
-    const warrenConfidence = warrenAnalysis.decision.confidence || 65;
     
     // Calculer tendances BTTS/Over
     const team1Btts = team1.matches.filter(m => m.score.team > 0 && m.score.opponent > 0).length;
@@ -292,55 +194,131 @@ class WarrenAnalyzer {
     const team2Over = team2.matches.filter(m => (m.score.team + m.score.opponent) > 2.5).length;
     const overYes = (team1Over + team2Over) >= 8;
     
-    // Logique ELO + Warren
-    let prono1x2 = 'X';
-    let confidence = Math.round(warrenConfidence / 10); // 65% -> 6.5
-    let scoreAttendu = '1-1';
+    // ANALYSER LA QUALITÉ DES PERFORMANCES (selon ELO adversaires)
+    // Compter les bonnes performances (⭐⭐⭐ et ⭐⭐)
+    const team1GoodPerfs = team1.matches.filter(m => 
+      m.performance?.stars?.includes('⭐⭐⭐') || m.performance?.stars?.includes('⭐⭐')
+    ).length;
     
-    // VICTOIRE NETTE (Team gagne)
-    if (eloGap > 250 && warrenConfidence >= 60) {
-      prono1x2 = isFavorite ? '1' : '2';
-      confidence = Math.min(9, confidence + 1);
+    const team2GoodPerfs = team2.matches.filter(m => 
+      m.performance?.stars?.includes('⭐⭐⭐') || m.performance?.stars?.includes('⭐⭐')
+    ).length;
+    
+    // Compter les mauvaises performances (☆☆☆)
+    const team1BadPerfs = team1.matches.filter(m => 
+      m.performance?.stars?.includes('☆☆☆')
+    ).length;
+    
+    const team2BadPerfs = team2.matches.filter(m => 
+      m.performance?.stars?.includes('☆☆☆')
+    ).length;
+    
+    // Forme brute (W/D/L)
+    const team1Wins = team1.record.total.v;
+    const team2Wins = team2.record.total.v;
+    const team1Losses = team1.record.total.d;
+    const team2Losses = team2.record.total.d;
+    
+    // Score de qualité : bonnes perf - mauvaises perf
+    const team1QualityScore = team1GoodPerfs - team1BadPerfs + team1Wins;
+    const team2QualityScore = team2GoodPerfs - team2BadPerfs + team2Wins;
+    
+    let prono1x2 = 'X';
+    let confidence = 5;
+    let scoreAttendu = '1-1';
+    let raisons = [];
+    
+    // RÈGLE 1 : FATIGUE (toujours prioritaire)
+    if (team1.fatigue && !team2.fatigue) {
+      prono1x2 = 'X';
+      confidence = 6;
+      scoreAttendu = bttsYes ? '1-1' : '0-0';
+      raisons = [
+        `${team1.teamName} fatigué (${team1.fatigue.matchCount} matchs en ${team1.fatigue.period})`,
+        `${team2.teamName} frais, avantage physique`,
+        `Forme: ${team1Wins}W vs ${team2Wins}W`
+      ];
+    }
+    else if (team2.fatigue && !team1.fatigue) {
+      prono1x2 = 'X';
+      confidence = 6;
+      scoreAttendu = bttsYes ? '1-1' : '0-0';
+      raisons = [
+        `${team2.teamName} fatigué (${team2.fatigue.matchCount} matchs en ${team2.fatigue.period})`,
+        `${team1.teamName} frais, avantage physique`,
+        `Forme: ${team1Wins}W vs ${team2Wins}W`
+      ];
+    }
+    // RÈGLE 2 : DIFFÉRENCE DE QUALITÉ FORTE (écart >= 4)
+    else if (team1QualityScore - team2QualityScore >= 4) {
+      prono1x2 = '1';
+      confidence = 7;
       
-      // Score attendu selon BTTS/Over + qui gagne
-      if (isFavorite) {
-        // Team1 gagne
-        if (bttsYes && overYes) scoreAttendu = '3-1';
-        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Impossible de gagner si BTTS Oui + Over Non
-        else if (!bttsYes && overYes) scoreAttendu = '3-0';
-        else scoreAttendu = '2-0';
-      } else {
-        // Team2 gagne
-        if (bttsYes && overYes) scoreAttendu = '1-3';
-        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Impossible de gagner si BTTS Oui + Over Non
-        else if (!bttsYes && overYes) scoreAttendu = '0-3';
-        else scoreAttendu = '0-2';
-      }
+      if (bttsYes && overYes) scoreAttendu = '3-1';
+      else if (bttsYes && !overYes) scoreAttendu = '2-1';
+      else if (!bttsYes && overYes) scoreAttendu = '3-0';
+      else scoreAttendu = '2-0';
       
-    } 
-    // FAVORI LÉGER (1X ou X2)
-    else if (eloGap > 150 && warrenConfidence >= 55) {
-      prono1x2 = isFavorite ? '1X' : 'X2';
-      confidence = Math.max(6, confidence);
+      raisons = [
+        `${team1.teamName} forme nettement supérieure`,
+        `Qualité: ${team1GoodPerfs} bonnes perf vs ${team2BadPerfs} mauvaises perf (adv)`,
+        `Bilan: ${team1Wins}W-${team1Losses}L vs ${team2Wins}W-${team2Losses}L`
+      ];
+    }
+    else if (team2QualityScore - team1QualityScore >= 4) {
+      prono1x2 = '2';
+      confidence = 7;
       
-      // Score attendu selon BTTS + qui est favori
-      if (isFavorite) {
-        // Team1 favori
-        if (bttsYes && overYes) scoreAttendu = '2-1';
-        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Seul score possible
-        else scoreAttendu = '1-0';
-      } else {
-        // Team2 favori
-        if (bttsYes && overYes) scoreAttendu = '1-2';
-        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Seul score possible
-        else scoreAttendu = '0-1';
-      }
+      if (bttsYes && overYes) scoreAttendu = '1-3';
+      else if (bttsYes && !overYes) scoreAttendu = '1-2';
+      else if (!bttsYes && overYes) scoreAttendu = '0-3';
+      else scoreAttendu = '0-2';
       
-    } 
-    // MATCH ÉQUILIBRÉ (X)
+      raisons = [
+        `${team2.teamName} forme nettement supérieure`,
+        `Qualité: ${team2GoodPerfs} bonnes perf vs ${team1BadPerfs} mauvaises perf (adv)`,
+        `Bilan: ${team2Wins}W-${team2Losses}L vs ${team1Wins}W-${team1Losses}L`
+      ];
+    }
+    // RÈGLE 3 : DIFFÉRENCE MOYENNE (écart 2-3)
+    else if (team1QualityScore - team2QualityScore >= 2) {
+      prono1x2 = '1X';
+      confidence = 6;
+      
+      if (bttsYes && overYes) scoreAttendu = '2-1';
+      else if (bttsYes && !overYes) scoreAttendu = '1-1';
+      else scoreAttendu = '1-0';
+      
+      raisons = [
+        `${team1.teamName} légèrement meilleur`,
+        `Forme: ${team1Wins}W vs ${team2Wins}W (${team1GoodPerfs} bonnes perf)`,
+        `Sécurité avec double chance`
+      ];
+    }
+    else if (team2QualityScore - team1QualityScore >= 2) {
+      prono1x2 = 'X2';
+      confidence = 6;
+      
+      if (bttsYes && overYes) scoreAttendu = '1-2';
+      else if (bttsYes && !overYes) scoreAttendu = '1-1';
+      else scoreAttendu = '0-1';
+      
+      raisons = [
+        `${team2.teamName} légèrement meilleur`,
+        `Forme: ${team2Wins}W vs ${team1Wins}W (${team2GoodPerfs} bonnes perf)`,
+        `Sécurité avec double chance`
+      ];
+    }
+    // RÈGLE 4 : ÉQUILIBRÉ (écart < 2)
     else {
       prono1x2 = 'X';
+      confidence = 5;
       scoreAttendu = bttsYes ? '1-1' : '0-0';
+      raisons = [
+        `Forme équilibrée (${team1Wins}W vs ${team2Wins}W)`,
+        `Qualité similaire (${team1GoodPerfs} vs ${team2GoodPerfs} bonnes perf)`,
+        `Match indécis`
+      ];
     }
     
     return {
@@ -352,12 +330,12 @@ class WarrenAnalyzer {
       confidence_over: Math.min(9, Math.round((stats.over25.team1.percentage + stats.over25.team2.percentage) / 20)),
       score_attendu: scoreAttendu,
       scores_alternatifs: this.alternativeScores(team1, team2, prono1x2, bttsYes, overYes),
-      raisons: this.generateReasonsWithWarren(team1, team2, stats, eloGap, warrenAnalysis),
+      raisons: raisons,
       risques: this.generateRisks(team1, team2, eloGap)
     };
   }
-
-  generateReasonsWithWarren(team1, team2, stats, eloGap, warrenAnalysis) {
+  }
+  }
     const reasons = [];
     
     // Ajouter note Warren
