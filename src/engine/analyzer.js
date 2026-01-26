@@ -54,22 +54,30 @@ class Analyzer {
       team2Elo
     );
     
+    // Calculer record pour compatibilité front-end
+    const team1Record = this.calculateRecord(team1Data.matches);
+    const team2Record = this.calculateRecord(team2Data.matches);
+
     return {
       team1: {
         teamName: team1Data.teamName,
         elo: team1Elo,
         rating: this.eloEngine.qualifyTeam(team1Elo),
+        record: team1Record, // Pour compatibilité front
         form: warrenAnalysis.team1Form,
         events: warrenAnalysis.team1Events,
-        matches: this.enrichMatches(team1Data.matches, team1Elo)
+        matches: this.enrichMatches(team1Data.matches, team1Elo),
+        formeSummary: this.generateFormSummary(warrenAnalysis.team1Form, warrenAnalysis.team1Events)
       },
       team2: {
         teamName: team2Data.teamName,
         elo: team2Elo,
         rating: this.eloEngine.qualifyTeam(team2Elo),
+        record: team2Record, // Pour compatibilité front
         form: warrenAnalysis.team2Form,
         events: warrenAnalysis.team2Events,
-        matches: this.enrichMatches(team2Data.matches, team2Elo)
+        matches: this.enrichMatches(team2Data.matches, team2Elo),
+        formeSummary: this.generateFormSummary(warrenAnalysis.team2Form, warrenAnalysis.team2Events)
       },
       warren: {
         straightWinAllowed: warrenAnalysis.straightWinAllowed,
@@ -292,6 +300,60 @@ class Analyzer {
         },
         tendency: (team1Btts + team2Btts) >= 8 ? 'Oui' : 'Non'
       }
+    };
+  }
+
+  /**
+   * CALCULER RECORD (pour compatibilité front-end)
+   */
+  calculateRecord(matches) {
+    let totalV = 0, totalN = 0, totalD = 0;
+    let homeV = 0, homeN = 0, homeD = 0;
+    let awayV = 0, awayN = 0, awayD = 0;
+
+    matches.forEach(m => {
+      const isDomicile = m.location === 'Domicile';
+      
+      if (m.result === 'victoire') {
+        totalV++;
+        if (isDomicile) homeV++;
+        else awayV++;
+      } else if (m.result === 'nul') {
+        totalN++;
+        if (isDomicile) homeN++;
+        else awayN++;
+      } else if (m.result === 'defaite') {
+        totalD++;
+        if (isDomicile) homeD++;
+        else awayD++;
+      }
+    });
+
+    return {
+      total: { v: totalV, n: totalN, d: totalD },
+      home: { v: homeV, n: homeN, d: homeD },
+      away: { v: awayV, n: awayN, d: awayD }
+    };
+  }
+
+  /**
+   * GÉNÉRER RÉSUMÉ FORME (pour compatibilité front-end)
+   */
+  generateFormSummary(formData, eventsData) {
+    let quality = 'Moyenne';
+    const wins7 = formData.wins7 || 0;
+
+    if (wins7 >= 5) quality = 'Excellente';
+    else if (wins7 >= 4) quality = 'Bonne';
+    else if (wins7 <= 2) quality = 'Faible';
+
+    const biasCount = eventsData.summary?.tags?.length || 0;
+
+    return {
+      quality: quality,
+      biasCount: biasCount,
+      fatigue: 'Non',
+      note: ''
     };
   }
 
