@@ -133,34 +133,112 @@ const WarrenEngineApp = () => {
           Derniers matchs :
         </div>
         {team.matches.slice(0, 7).map((match, i) => (
-          <div key={i} style={{
-            fontSize: '0.8rem',
-            padding: '0.75rem',
-            background: 'rgba(0,0,0,0.2)',
-            borderRadius: '0.5rem',
-            marginBottom: '0.5rem'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-              <span>{match.opponent} (ELO {match.opponentElo})</span>
-              <span style={{ fontWeight: '600' }}>
-                {match.score.team}-{match.score.opponent}
-              </span>
-            </div>
-            <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
-              {match.performance.stars} {match.performance.label} - Écart {match.eloGap}
-            </div>
-            {match.biases.penalty && (
-              <div style={{ color: '#fbbf24', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                🟡 {match.biases.penalty.message}
-              </div>
-            )}
-            {match.biases.redCard && (
-              <div style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                🔴 {match.biases.redCard.message}
-              </div>
-            )}
+  <div key={i} style={{
+    fontSize: '0.8rem',
+    padding: '0.75rem',
+    background: 'rgba(0,0,0,0.2)',
+    borderRadius: '0.5rem',
+    marginBottom: '0.5rem'
+  }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+      <span>{match.opponent} (ELO {match.opponentElo})</span>
+      <span style={{ fontWeight: '600' }}>
+        {match.score.team}-{match.score.opponent}
+      </span>
+    </div>
+    
+    <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
+      {match.performance.stars} {match.performance.label} - Écart {match.eloGap}
+    </div>
+    
+    {/* TOUS LES BUTS */}
+    {match.events.allGoals && match.events.allGoals.length > 0 && (
+      <div style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
+        <div style={{ color: '#10b981', fontWeight: '600' }}>⚽ Buts :</div>
+        {match.events.allGoals.map((goal, idx) => (
+          <div key={idx} style={{ color: '#cbd5e1', marginLeft: '0.5rem' }}>
+            • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent}
+            {goal.detail && goal.detail !== 'Normal Goal' && ` (${goal.detail})`}
           </div>
         ))}
+      </div>
+    )}
+    
+    {/* PENALTIES */}
+    {match.events.penalties && match.events.penalties.length > 0 && (
+      <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+        <div style={{ color: '#fbbf24', fontWeight: '600' }}>🟡 Penalties :</div>
+        {match.events.penalties.map((pen, idx) => (
+          <div key={idx} style={{ color: '#fbbf24', marginLeft: '0.5rem' }}>
+            • {pen.minute}' - {pen.isTeam ? team.teamName : match.opponent} ({pen.player})
+          </div>
+        ))}
+      </div>
+    )}
+    
+    {/* CARTONS ROUGES */}
+    {match.events.redCards && match.events.redCards.length > 0 && (
+      <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+        <div style={{ color: '#ef4444', fontWeight: '600' }}>🔴 Cartons rouges :</div>
+        {match.events.redCards.map((red, idx) => (
+          <div key={idx} style={{ color: '#ef4444', marginLeft: '0.5rem' }}>
+            • {red.minute}' - {red.isTeam ? team.teamName : match.opponent} ({red.player})
+          </div>
+        ))}
+      </div>
+    )}
+    
+    {/* BUTS 90'+ */}
+    {match.events.goals90Plus && match.events.goals90Plus.length > 0 && (
+      <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+        <div style={{ color: '#a78bfa', fontWeight: '600' }}>⚡ Buts après 90' :</div>
+        {match.events.goals90Plus.map((goal, idx) => (
+          <div key={idx} style={{ color: '#a78bfa', marginLeft: '0.5rem' }}>
+            • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent}
+          </div>
+        ))}
+      </div>
+    )}
+    
+    {/* ANALYSE BIAIS (messages Warren) */}
+    {match.biases.penalty && (
+      <div style={{ 
+        color: match.biases.penalty.severity.includes('NEGATIF') ? '#fbbf24' : '#10b981', 
+        fontSize: '0.75rem', 
+        marginTop: '0.5rem',
+        padding: '0.5rem',
+        background: 'rgba(0,0,0,0.2)',
+        borderRadius: '0.25rem'
+      }}>
+        💬 {match.biases.penalty.message}
+      </div>
+    )}
+    {match.biases.redCard && (
+      <div style={{ 
+        color: match.biases.redCard.severity.includes('NEGATIF') ? '#ef4444' : '#10b981', 
+        fontSize: '0.75rem', 
+        marginTop: '0.25rem',
+        padding: '0.5rem',
+        background: 'rgba(0,0,0,0.2)',
+        borderRadius: '0.25rem'
+      }}>
+        💬 {match.biases.redCard.message}
+      </div>
+    )}
+    {match.biases.goal90 && (
+      <div style={{ 
+        color: match.biases.goal90.severity.includes('NEGATIF') ? '#a78bfa' : '#10b981', 
+        fontSize: '0.75rem', 
+        marginTop: '0.25rem',
+        padding: '0.5rem',
+        background: 'rgba(0,0,0,0.2)',
+        borderRadius: '0.25rem'
+      }}>
+        💬 {match.biases.goal90.message}
+      </div>
+    )}
+  </div>
+))}
       </div>
     </div>
   );
