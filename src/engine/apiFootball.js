@@ -63,15 +63,13 @@ class ApiFootballService {
       const toDateStr = targetDate.toISOString().split('T')[0];
       const fromDateStr = fromDate.toISOString().split('T')[0];
       
-     
       // Déterminer la saison (année de début de saison)
-// Si le match est entre janvier et juin → saison commence l'année précédente
-// Si le match est entre juillet et décembre → saison commence cette année
-const month = targetDate.getMonth(); // 0 = janvier, 11 = décembre
-const season = (month >= 0 && month <= 5) ? targetDate.getFullYear() - 1 : targetDate.getFullYear();
-
-console.log(`[API] Match date month: ${month}, calculated season: ${season}`);
+      // Si le match est entre janvier et juin → saison commence l'année précédente
+      // Si le match est entre juillet et décembre → saison commence cette année
+      const month = targetDate.getMonth(); // 0 = janvier, 11 = décembre
+      const season = (month >= 0 && month <= 5) ? targetDate.getFullYear() - 1 : targetDate.getFullYear();
       
+      console.log(`[API] Match date month: ${month}, calculated season: ${season}`);
       console.log(`[API] Fetching matches from ${fromDateStr} to ${toDateStr} for team ${teamId} (season ${season})`);
       
       const fixtures = await this.request(`/fixtures?team=${teamId}&season=${season}&from=${fromDateStr}&to=${toDateStr}`);
@@ -81,8 +79,18 @@ console.log(`[API] Match date month: ${month}, calculated season: ${season}`);
         return [];
       }
       
+      // NOUVEAU : Filtrer pour exclure les matchs du jour même ou après
+      const targetDateTime = targetDate.getTime();
+      const filteredFixtures = fixtures.filter(f => {
+        const fixtureTime = new Date(f.fixture.date).getTime();
+        // Garder seulement les matchs STRICTEMENT AVANT la date cible
+        return fixtureTime < targetDateTime;
+      });
+      
+      console.log(`[API] After filtering match day: ${filteredFixtures.length} matches (removed ${fixtures.length - filteredFixtures.length})`);
+      
       // Trier par date décroissante (plus récent d'abord)
-      const sorted = fixtures.sort((a, b) => {
+      const sorted = filteredFixtures.sort((a, b) => {
         return new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime();
       });
       
