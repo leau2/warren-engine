@@ -283,16 +283,64 @@ class WarrenAnalyzer {
     // Warren AUTORISE victoire directe
     const warrenConfidence = warrenAnalysis.decision.confidence || 65;
     
+    // Calculer tendances BTTS/Over
+    const team1Btts = team1.matches.filter(m => m.score.team > 0 && m.score.opponent > 0).length;
+    const team2Btts = team2.matches.filter(m => m.score.team > 0 && m.score.opponent > 0).length;
+    const bttsYes = (team1Btts + team2Btts) >= 8;
+    
+    const team1Over = team1.matches.filter(m => (m.score.team + m.score.opponent) > 2.5).length;
+    const team2Over = team2.matches.filter(m => (m.score.team + m.score.opponent) > 2.5).length;
+    const overYes = (team1Over + team2Over) >= 8;
+    
     // Logique ELO + Warren
     let prono1x2 = 'X';
     let confidence = Math.round(warrenConfidence / 10); // 65% -> 6.5
+    let scoreAttendu = '1-1';
     
+    // VICTOIRE NETTE (Team gagne)
     if (eloGap > 250 && warrenConfidence >= 60) {
       prono1x2 = isFavorite ? '1' : '2';
       confidence = Math.min(9, confidence + 1);
-    } else if (eloGap > 150 && warrenConfidence >= 55) {
+      
+      // Score attendu selon BTTS/Over + qui gagne
+      if (isFavorite) {
+        // Team1 gagne
+        if (bttsYes && overYes) scoreAttendu = '3-1';
+        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Impossible de gagner si BTTS Oui + Over Non
+        else if (!bttsYes && overYes) scoreAttendu = '3-0';
+        else scoreAttendu = '2-0';
+      } else {
+        // Team2 gagne
+        if (bttsYes && overYes) scoreAttendu = '1-3';
+        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Impossible de gagner si BTTS Oui + Over Non
+        else if (!bttsYes && overYes) scoreAttendu = '0-3';
+        else scoreAttendu = '0-2';
+      }
+      
+    } 
+    // FAVORI LÉGER (1X ou X2)
+    else if (eloGap > 150 && warrenConfidence >= 55) {
       prono1x2 = isFavorite ? '1X' : 'X2';
       confidence = Math.max(6, confidence);
+      
+      // Score attendu selon BTTS + qui est favori
+      if (isFavorite) {
+        // Team1 favori
+        if (bttsYes && overYes) scoreAttendu = '2-1';
+        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Seul score possible
+        else scoreAttendu = '1-0';
+      } else {
+        // Team2 favori
+        if (bttsYes && overYes) scoreAttendu = '1-2';
+        else if (bttsYes && !overYes) scoreAttendu = '1-1'; // Seul score possible
+        else scoreAttendu = '0-1';
+      }
+      
+    } 
+    // MATCH ÉQUILIBRÉ (X)
+    else {
+      prono1x2 = 'X';
+      scoreAttendu = bttsYes ? '1-1' : '0-0';
     }
     
     return {
@@ -302,8 +350,8 @@ class WarrenAnalyzer {
       confidence_btts: Math.min(9, Math.round((stats.btts.team1.percentage + stats.btts.team2.percentage) / 20)),
       over: stats.over25.tendency,
       confidence_over: Math.min(9, Math.round((stats.over25.team1.percentage + stats.over25.team2.percentage) / 20)),
-      score_attendu: this.estimateScore(team1, team2, stats),
-      scores_alternatifs: this.alternativeScores(team1, team2),
+      score_attendu: scoreAttendu,
+      scores_alternatifs: this.alternativeScores(team1, team2, prono1x2, bttsYes, overYes),
       raisons: this.generateReasonsWithWarren(team1, team2, stats, eloGap, warrenAnalysis),
       risques: this.generateRisks(team1, team2, eloGap)
     };
@@ -379,8 +427,79 @@ class WarrenAnalyzer {
     return `${Math.round(avgGoals1)}-${Math.round(avgGoals2)}`;
   }
 
-  alternativeScores(team1, team2) {
-    return ['1-1', '2-1', '1-2', '2-2'].slice(0, 3);
+  alternativeScores(team1, team2, prono1x2, bttsYes, overYes) {
+    const eloGap = this.eloEngine.calculateGap(team1.elo, team2.elo);
+    const isFavorite = team1.elo > team2.elo;
+    
+    let alternatives = [];
+    
+    // Si prono = '1' (Team1 gagne)
+    if (prono1x2 === '1') {
+      if (bttsYes && overYes) {
+        alternatives = ['3-1', '3-2', '4-2'];
+      } else if (bttsYes && !overYes) {
+        // IMPOSSIBLE de gagner avec BTTS Oui + Under → seul 1-1 existe
+        alternatives = ['1-1', '1-0', '2-0']; // Mettre des scores réalistes même si contradiction
+      } else if (!bttsYes && overYes) {
+        alternatives = ['3-0', '4-0', '5-0'];
+      } else {
+        alternatives = ['2-0', '1-0', '3-0'];
+      }
+    }
+    // Si prono = '2' (Team2 gagne)
+    else if (prono1x2 === '2') {
+      if (bttsYes && overYes) {
+        alternatives = ['1-3', '2-3', '2-4'];
+      } else if (bttsYes && !overYes) {
+        // IMPOSSIBLE de gagner avec BTTS Oui + Under → seul 1-1 existe
+        alternatives = ['1-1', '0-1', '0-2']; // Mettre des scores réalistes même si contradiction
+      } else if (!bttsYes && overYes) {
+        alternatives = ['0-3', '0-4', '0-5'];
+      } else {
+        alternatives = ['0-2', '0-1', '0-3'];
+      }
+    }
+    // Si prono = '1X' (Team1 favori mais peut nul)
+    else if (prono1x2 === '1X') {
+      if (bttsYes && overYes) {
+        alternatives = ['2-1', '1-1', '3-2'];
+      } else if (bttsYes && !overYes) {
+        // Seul 1-1 est possible avec BTTS Oui + Under
+        alternatives = ['1-1', '1-0', '2-1'];
+      } else if (!bttsYes && overYes) {
+        alternatives = ['3-0', '1-0', '4-0'];
+      } else {
+        alternatives = ['1-0', '0-0', '2-0'];
+      }
+    }
+    // Si prono = 'X2' (Team2 favori mais peut nul)
+    else if (prono1x2 === 'X2') {
+      if (bttsYes && overYes) {
+        alternatives = ['1-2', '1-1', '2-3'];
+      } else if (bttsYes && !overYes) {
+        // Seul 1-1 est possible avec BTTS Oui + Under
+        alternatives = ['1-1', '0-1', '1-2'];
+      } else if (!bttsYes && overYes) {
+        alternatives = ['0-3', '0-1', '0-4'];
+      } else {
+        alternatives = ['0-1', '0-0', '0-2'];
+      }
+    }
+    // Si prono = 'X' (Nul)
+    else {
+      if (bttsYes && overYes) {
+        alternatives = ['2-2', '3-3', '1-1'];
+      } else if (bttsYes && !overYes) {
+        // Seul 1-1 est possible avec BTTS Oui + Under
+        alternatives = ['1-1', '0-0', '2-2'];
+      } else if (!bttsYes && overYes) {
+        alternatives = ['0-0', '3-3', '2-2'];
+      } else {
+        alternatives = ['0-0', '1-1', '1-0'];
+      }
+    }
+    
+    return alternatives.slice(0, 3);
   }
 
   generateReasons(team1, team2, stats, eloGap) {
