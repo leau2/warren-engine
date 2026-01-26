@@ -140,12 +140,23 @@ const WarrenEngineApp = () => {
     borderRadius: '0.5rem',
     marginBottom: '0.5rem'
   }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-      <span>{match.opponent} (ELO {match.opponentElo})</span>
-      <span style={{ fontWeight: '600' }}>
-        {match.score.team}-{match.score.opponent}
-      </span>
-    </div>
+    <div style={{ marginBottom: '0.5rem' }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <span style={{ fontWeight: '600', fontSize: '0.85rem' }}>
+      vs {match.opponent} (ELO {match.opponentElo})
+    </span>
+    <span style={{ 
+      fontSize: '1rem', 
+      fontWeight: '700',
+      color: match.result === 'victoire' ? '#10b981' : match.result === 'defaite' ? '#ef4444' : '#f59e0b'
+    }}>
+      {match.result === 'victoire' ? '✅' : match.result === 'defaite' ? '❌' : '⚖️'}
+    </span>
+  </div>
+  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+    {match.location} • {team.teamName} {match.score.team} - {match.score.opponent} {match.opponent}
+  </div>
+</div>
     
     <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
       {match.performance.stars} {match.performance.label} - Écart {match.eloGap}
@@ -187,6 +198,18 @@ const WarrenEngineApp = () => {
         ))}
       </div>
     )}
+
+    {/* BUTS REFUSÉS */}
+  {match.events.disallowedGoals && match.events.disallowedGoals.length > 0 && (
+    <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+      <div style={{ color: '#f59e0b', fontWeight: '600' }}>🚫 Buts refusés (VAR) :</div>
+      {match.events.disallowedGoals.map((goal, idx) => (
+        <div key={idx} style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>
+          • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent} ({goal.player}) - {goal.reason}
+        </div>
+      ))}
+    </div>
+  )}
     
     {/* BUTS 90'+ */}
     {match.events.goals90Plus && match.events.goals90Plus.length > 0 && (
