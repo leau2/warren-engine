@@ -63,8 +63,14 @@ class ApiFootballService {
       const toDateStr = targetDate.toISOString().split('T')[0];
       const fromDateStr = fromDate.toISOString().split('T')[0];
       
-      // Déterminer la saison (année de la date cible)
-      const season = targetDate.getFullYear();
+     
+      // Déterminer la saison (année de début de saison)
+// Si le match est entre janvier et juin → saison commence l'année précédente
+// Si le match est entre juillet et décembre → saison commence cette année
+const month = targetDate.getMonth(); // 0 = janvier, 11 = décembre
+const season = (month >= 0 && month <= 5) ? targetDate.getFullYear() - 1 : targetDate.getFullYear();
+
+console.log(`[API] Match date month: ${month}, calculated season: ${season}`);
       
       console.log(`[API] Fetching matches from ${fromDateStr} to ${toDateStr} for team ${teamId} (season ${season})`);
       
