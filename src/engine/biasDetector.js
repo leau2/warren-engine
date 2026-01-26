@@ -3,17 +3,17 @@
 
 class BiasDetector {
   constructor() {
-    // Seuils pour victoire directe
+    // Seuils pour victoire directe (ASSOUPLIS pour être plus réalistes)
     this.THRESHOLDS = {
-      FAVORI_WINS_5: 3,
-      FAVORI_WINS_7: 4,
-      ADVERSAIRE_WINS_5_MAX: 1,
-      ADVERSAIRE_LOSSES_5_MIN: 2,
-      ADVERSAIRE_WINS_7_MAX: 2,
-      ADVERSAIRE_LOSSES_7_MIN: 3,
-      ADVERSAIRE_LOSSES_7_STRICT: 4,
-      ANTI_PIEGE_LOSSES_7: 2, // Si adversaire <= 2 défaites => INTERDIT victoire directe
-      TROP_DE_NULS: 3 // Si >= 3 nuls sur 7 => pas victoire directe
+      FAVORI_WINS_5: 3,        // 3 victoires sur 5 (60%)
+      FAVORI_WINS_7: 4,        // 4 victoires sur 7 (57%)
+      ADVERSAIRE_WINS_5_MAX: 2, // Maximum 2 victoires sur 5 (au lieu de 1)
+      ADVERSAIRE_LOSSES_5_MIN: 2, // Minimum 2 défaites sur 5
+      ADVERSAIRE_WINS_7_MAX: 2,   // Maximum 2 victoires sur 7
+      ADVERSAIRE_LOSSES_7_MIN: 3, // Minimum 3 défaites sur 7
+      ADVERSAIRE_LOSSES_7_STRICT: 4, // (non utilisé)
+      ANTI_PIEGE_LOSSES_7: 1,    // Si adversaire <= 1 défaite => INTERDIT (au lieu de 2)
+      TROP_DE_NULS: 4            // Si >= 4 nuls sur 7 => pas victoire directe (au lieu de 3)
     };
   }
 
@@ -576,20 +576,21 @@ class BiasDetector {
     if (!matches || matches.length < 3) return null;
     
     const dates = matches.map(m => new Date(m.date)).sort((a, b) => b - a);
-    let matchesIn10Days = 1;
+    let matchesIn11Days = 1;
     
     for (let i = 0; i < Math.min(dates.length - 1, 6); i++) {
       const daysDiff = (dates[0] - dates[i + 1]) / (1000 * 60 * 60 * 24);
-      if (daysDiff <= 10) {
-        matchesIn10Days++;
+      if (daysDiff <= 11) {
+        matchesIn11Days++;
       }
     }
     
-    if (matchesIn10Days >= 3) {
+    // 4 matchs en 11 jours = critique (fatigue confirmée)
+    if (matchesIn11Days >= 4) {
       return {
         detected: true,
-        matchCount: matchesIn10Days,
-        period: '10 jours',
+        matchCount: matchesIn11Days,
+        period: '11 jours',
         impact: 'Fatigue confirmée, performance réduite attendue',
         severity: 'FORT'
       };
