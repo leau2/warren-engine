@@ -127,6 +127,7 @@ const TEAM_NAMES = {
   'augsburg': 'Augsburg',
   'stuttgart': 'VfB Stuttgart',
   'st pauli' : 'FC St. Pauli',
+  'heidenheim' : '1. FC Heidenheim',
   
   // ==================== SERIE A ====================
   'juve': 'Juventus',
