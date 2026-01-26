@@ -103,6 +103,15 @@ class Analyzer {
       const opponentElo = this.findElo(match.opponent);
       const eloGap = this.eloEngine.calculateGap(teamElo, opponentElo);
       
+      // Calculer performance pour compatibilité front-end
+      const performance = this.eloEngine.qualifyPerformance(
+        match.result,
+        teamElo,
+        opponentElo,
+        match.score?.team || 0,
+        match.score?.opponent || 0
+      );
+      
       return {
         date: match.date,
         location: match.location,
@@ -112,6 +121,7 @@ class Analyzer {
         eloGap: eloGap,
         score: match.score,
         result: match.result,
+        performance: performance,  // Ajout pour compatibilité
         events: match.events
       };
     });
