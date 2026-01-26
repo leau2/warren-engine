@@ -137,61 +137,75 @@ class ApiFootballService {
   }
 
   parseEvents(events, teamName, opponentName) {
-    const parsed = {
-      redCards: [],
-      penalties: [],
-      goals90Plus: [],
-      allGoals: []
-    };
-    
-    if (!events || events.length === 0) {
-      return parsed;
-    }
-    
-    events.forEach(event => {
-      // Cartons rouges
-      if (event.type === 'Card' && event.detail === 'Red Card') {
-        parsed.redCards.push({
-          team: event.team.name,
-          isTeam: event.team.name === teamName,
-          minute: event.time.elapsed,
-          player: event.player?.name
-        });
-      }
-      
-      // Penalties
-      if (event.type === 'Goal' && event.detail && event.detail.includes('Penalty')) {
-        parsed.penalties.push({
-          team: event.team.name,
-          isTeam: event.team.name === teamName,
-          minute: event.time.elapsed,
-          player: event.player?.name
-        });
-      }
-      
-      // Buts 90'+
-      if (event.type === 'Goal' && event.time.elapsed >= 90) {
-        parsed.goals90Plus.push({
-          team: event.team.name,
-          isTeam: event.team.name === teamName,
-          minute: event.time.elapsed,
-          detail: event.detail
-        });
-      }
-      
-      // Tous les buts
-      if (event.type === 'Goal') {
-        parsed.allGoals.push({
-          team: event.team.name,
-          isTeam: event.team.name === teamName,
-          minute: event.time.elapsed,
-          detail: event.detail
-        });
-      }
-    });
-    
+  const parsed = {
+    redCards: [],
+    penalties: [],
+    goals90Plus: [],
+    allGoals: [],
+    disallowedGoals: []  // ← NOUVEAU
+  };
+  
+  if (!events || events.length === 0) {
     return parsed;
   }
+  
+  events.forEach(event => {
+    // Cartons rouges
+    if (event.type === 'Card' && event.detail === 'Red Card') {
+      parsed.redCards.push({
+        team: event.team.name,
+        isTeam: event.team.name === teamName,
+        minute: event.time.elapsed,
+        player: event.player?.name
+      });
+    }
+    
+    // Penalties
+    if (event.type === 'Goal' && event.detail && event.detail.includes('Penalty')) {
+      parsed.penalties.push({
+        team: event.team.name,
+        isTeam: event.team.name === teamName,
+        minute: event.time.elapsed,
+        player: event.player?.name
+      });
+    }
+    
+    // Buts 90'+
+    if (event.type === 'Goal' && event.time.elapsed >= 90) {
+      parsed.goals90Plus.push({
+        team: event.team.name,
+        isTeam: event.team.name === teamName,
+        minute: event.time.elapsed,
+        detail: event.detail
+      });
+    }
+    
+    // Tous les buts
+    if (event.type === 'Goal') {
+      parsed.allGoals.push({
+        team: event.team.name,
+        isTeam: event.team.name === teamName,
+        minute: event.time.elapsed,
+        detail: event.detail
+      });
+    }
+    
+    // BUTS REFUSÉS (VAR / Hors-jeu) ← NOUVEAU
+    if (event.type === 'VAR' && event.detail && 
+        (event.detail.includes('Goal cancelled') || 
+         event.detail.includes('Goal disallowed'))) {
+      parsed.disallowedGoals.push({
+        team: event.team.name,
+        isTeam: event.team.name === teamName,
+        minute: event.time.elapsed,
+        reason: event.detail,
+        player: event.player?.name
+      });
+    }
+  });
+  
+  return parsed;
+}
 }
 
 export default ApiFootballService;
