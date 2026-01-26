@@ -58,14 +58,17 @@ class ApiFootballService {
       // Calculer fenêtre de 180 jours AVANT la date cible
       const targetDate = new Date(beforeDate);
       const fromDate = new Date(targetDate);
-      fromDate.setDate(targetDate.getDate() - 180); // 6 mois avant
+      fromDate.setDate(targetDate.getDate() - 180);
       
       const toDateStr = targetDate.toISOString().split('T')[0];
       const fromDateStr = fromDate.toISOString().split('T')[0];
       
-      console.log(`[API] Fetching matches from ${fromDateStr} to ${toDateStr} for team ${teamId}`);
+      // Déterminer la saison (année de la date cible)
+      const season = targetDate.getFullYear();
       
-      const fixtures = await this.request(`/fixtures?team=${teamId}&from=${fromDateStr}&to=${toDateStr}`);
+      console.log(`[API] Fetching matches from ${fromDateStr} to ${toDateStr} for team ${teamId} (season ${season})`);
+      
+      const fixtures = await this.request(`/fixtures?team=${teamId}&season=${season}&from=${fromDateStr}&to=${toDateStr}`);
       
       if (!fixtures || fixtures.length === 0) {
         console.warn('[API] No fixtures found in date range');
