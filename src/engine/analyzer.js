@@ -186,40 +186,40 @@ class WarrenAnalyzer {
     const eloGap = this.eloEngine.calculateGap(team1.elo, team2.elo);
     
     // Calculer tendances BTTS/Over
-    const team1Btts = team1.matches.filter(m => m.score.team > 0 && m.score.opponent > 0).length;
-    const team2Btts = team2.matches.filter(m => m.score.team > 0 && m.score.opponent > 0).length;
+    const team1Btts = team1.matches?.filter(m => m.score?.team > 0 && m.score?.opponent > 0).length || 0;
+    const team2Btts = team2.matches?.filter(m => m.score?.team > 0 && m.score?.opponent > 0).length || 0;
     const bttsYes = (team1Btts + team2Btts) >= 8;
     
-    const team1Over = team1.matches.filter(m => (m.score.team + m.score.opponent) > 2.5).length;
-    const team2Over = team2.matches.filter(m => (m.score.team + m.score.opponent) > 2.5).length;
+    const team1Over = team1.matches?.filter(m => (m.score?.team + m.score?.opponent) > 2.5).length || 0;
+    const team2Over = team2.matches?.filter(m => (m.score?.team + m.score?.opponent) > 2.5).length || 0;
     const overYes = (team1Over + team2Over) >= 8;
     
     // ANALYSER LA QUALITÉ DES PERFORMANCES (selon ELO adversaires)
     // Compter les bonnes performances (⭐⭐⭐ et ⭐⭐)
-    const team1GoodPerfs = team1.matches.filter(m => 
+    const team1GoodPerfs = team1.matches?.filter(m => 
       m.performance?.stars?.includes('⭐⭐⭐') || m.performance?.stars?.includes('⭐⭐')
-    ).length;
+    ).length || 0;
     
-    const team2GoodPerfs = team2.matches.filter(m => 
+    const team2GoodPerfs = team2.matches?.filter(m => 
       m.performance?.stars?.includes('⭐⭐⭐') || m.performance?.stars?.includes('⭐⭐')
-    ).length;
+    ).length || 0;
     
     // Compter les mauvaises performances (☆☆☆)
-    const team1BadPerfs = team1.matches.filter(m => 
+    const team1BadPerfs = team1.matches?.filter(m => 
       m.performance?.stars?.includes('☆☆☆')
-    ).length;
+    ).length || 0;
     
-    const team2BadPerfs = team2.matches.filter(m => 
+    const team2BadPerfs = team2.matches?.filter(m => 
       m.performance?.stars?.includes('☆☆☆')
-    ).length;
+    ).length || 0;
     
     // Forme brute (W/D/L)
-    const team1Wins = team1.record.total.v;
-    const team2Wins = team2.record.total.v;
-    const team1Losses = team1.record.total.d;
-    const team2Losses = team2.record.total.d;
+    const team1Wins = team1.record?.total?.v || 0;
+    const team2Wins = team2.record?.total?.v || 0;
+    const team1Losses = team1.record?.total?.d || 0;
+    const team2Losses = team2.record?.total?.d || 0;
     
-    // Score de qualité : bonnes perf - mauvaises perf
+    // Score de qualité : bonnes perf - mauvaises perf + victoires
     const team1QualityScore = team1GoodPerfs - team1BadPerfs + team1Wins;
     const team2QualityScore = team2GoodPerfs - team2BadPerfs + team2Wins;
     
