@@ -8,19 +8,36 @@ class ApiFootballService {
     this.apiKey = apiKey;
   }
 
-  async request(endpoint) {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      headers: {
-        'x-apisports-key': this.apiKey
+  async request(endpoint, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`[API] Request ${endpoint} (attempt ${attempt}/${retries})`);
+        
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+          headers: {
+            'x-apisports-key': this.apiKey
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`[API] Success: ${endpoint} → ${data.response?.length || 0} items`);
+        return data.response;
+        
+      } catch (error) {
+        console.error(`[API] Attempt ${attempt}/${retries} failed:`, error.message);
+        
+        if (attempt === retries) {
+          throw error;
+        }
+        
+        // Attendre 1 seconde avant de réessayer
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
     }
-    
-    const data = await response.json();
-    return data.response;
   }
 
   async findTeamId(teamName) {
@@ -42,28 +59,45 @@ class ApiFootballService {
   }
 
   async getMatchEvents(fixtureId) {
-    const events = await this.request(`/fixtures/events?fixture=${fixtureId}`);
-    return events || [];
+    try {
+      const events = await this.request(`/fixtures/events?fixture=${fixtureId}`);
+      
+      if (!events || events.length === 0) {
+        console.warn(`[API] No events for fixture ${fixtureId}`);
+      } else {
+        console.log(`[API] Fixture ${fixtureId}: ${events.length} events`);
+      }
+      
+      return events || [];
+    } catch (error) {
+      console.error(`[API] Failed to get events for fixture ${fixtureId}:`, error.message);
+      return [];
+    }
   }
 
   async getTeamData(teamName) {
-  console.log('[API] getTeamData START:', teamName);
-  
-  // 1. Trouver l'ID de l'équipe
-  const team = await this.findTeamId(teamName);
-  console.log('[API] Team found:', team.id, team.name);
-  
-  // 2. Récupérer les 7 derniers matchs
-  console.log('[API] Fetching last 7 matches for team ID:', team.id);
-  const fixtures = await this.getLastMatches(team.id, 7);
-  console.log('[API] Fixtures received:', fixtures.length);
-  
-  // 3. Pour chaque match, récupérer les événements
-  console.log('[API] Fetching events for each match...');
-  const matchesWithEvents = await Promise.all(
+    console.log('[API] getTeamData START:', teamName);
     
+    // 1. Trouver l'ID de l'équipe
+    const team = await this.findTeamId(teamName);
+    console.log('[API] Team found:', team.id, team.name);
+    
+    // 2. Récupérer les 7 derniers matchs
+    console.log('[API] Fetching last 7 matches for team ID:', team.id);
+    const fixtures = await this.getLastMatches(team.id, 7);
+    console.log('[API] Fixtures received:', fixtures.length);
+    
+    // 3. Pour chaque match, récupérer les événements
+    console.log('[API] Fetching events for each match...');
+    const matchesWithEvents = await Promise.all(
       fixtures.map(async (fixture) => {
-        const events = await this.getMatchEvents(fixture.fixture.id);
+        let events = [];
+        try {
+          events = await this.getMatchEvents(fixture.fixture.id);
+        } catch (error) {
+          console.error(`[API] Failed events for fixture ${fixture.fixture.id}, using empty`);
+          events = [];
+        }
         
         const isHome = fixture.teams.home.id === team.id;
         const opponent = isHome ? fixture.teams.away.name : fixture.teams.home.name;
@@ -83,6 +117,8 @@ class ApiFootballService {
         };
       })
     );
+    
+    console.log('[API] getTeamData COMPLETE:', teamName);
     
     return {
       teamId: team.id,
@@ -107,6 +143,10 @@ class ApiFootballService {
       goals90Plus: [],
       allGoals: []
     };
+    
+    if (!events || events.length === 0) {
+      return parsed;
+    }
     
     events.forEach(event => {
       // Cartons rouges
