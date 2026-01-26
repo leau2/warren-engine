@@ -7,7 +7,7 @@ class ApiFootballService {
   constructor(apiKey) {
     this.apiKey = apiKey;
   }
-
+  
   async request(endpoint, retries = 3) {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
