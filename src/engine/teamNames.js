@@ -100,7 +100,7 @@ const TEAM_NAMES = {
   
   // ==================== BUNDESLIGA ====================
   'bayern': 'Bayern Munich',
-  'bayern munich': 'Bayern Munich',
+  'bayern munich': 'Bayern München',
   'dortmund': 'Borussia Dortmund',
   'bvb': 'Borussia Dortmund',
   'borussia dortmund': 'Borussia Dortmund',
@@ -114,9 +114,9 @@ const TEAM_NAMES = {
   'freiburg': 'SC Freiburg',
   'frankfurt': 'Eintracht Frankfurt',
   'eintracht': 'Eintracht Frankfurt',
-  'wolfsburg': 'Wolfsburg',
-  'monchengladbach': 'Borussia Monchengladbach',
-  'gladbach': 'Borussia Monchengladbach',
+  'wolfsburg': 'VfL Wolfsburg',
+  'monchengladbach': 'Borussia Mönchengladbach',
+  'gladbach': 'Borussia Mönchengladbach',
   'mainz': 'FSV Mainz 05',
   'hoffenheim': '1899 Hoffenheim',
   'cologne': '1. FC Köln',
@@ -124,10 +124,11 @@ const TEAM_NAMES = {
   'werder': 'Werder Bremen',
   'bremen': 'Werder Bremen',
   'bochum': 'VfL Bochum',
-  'augsburg': 'Augsburg',
+  'augsburg': 'FC Augsburg',
   'stuttgart': 'VfB Stuttgart',
   'st pauli' : 'FC St. Pauli',
   'heidenheim' : '1. FC Heidenheim',
+  'hambourg' : 'Hamburger SV',
   
   // ==================== SERIE A ====================
   'juve': 'Juventus',
