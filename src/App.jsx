@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 const WarrenEngineApp = () => {
   const [matchInput, setMatchInput] = useState('');
+  const [matchDate, setMatchDate] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -18,12 +19,13 @@ const WarrenEngineApp = () => {
 
     try {
       const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          match: matchInput
-        })
-      });
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    match: matchInput,
+    matchDate: matchDate ? `${matchDate}T12:00:00Z` : null
+  })
+});
 
       const data = await response.json();
 
@@ -378,6 +380,42 @@ const WarrenEngineApp = () => {
             </div>
           </div>
 
+          {/* Champ Date */}
+<div style={{ marginBottom: '1.5rem' }}>
+  <label style={{
+    display: 'block',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    marginBottom: '0.75rem',
+    color: '#cbd5e1'
+  }}>
+    📅 Date du match (optionnel)
+  </label>
+  <input
+    type="date"
+    value={matchDate}
+    onChange={(e) => setMatchDate(e.target.value)}
+    disabled={isAnalyzing}
+    style={{
+      width: '100%',
+      padding: '1rem',
+      fontSize: '1rem',
+      background: 'rgba(15, 23, 42, 0.8)',
+      border: '2px solid rgba(16, 185, 129, 0.5)',
+      borderRadius: '0.75rem',
+      color: '#e2e8f0',
+      outline: 'none'
+    }}
+  />
+  <div style={{ 
+    fontSize: '0.75rem', 
+    color: '#64748b', 
+    marginTop: '0.5rem' 
+  }}>
+    💡 Laissez vide pour un match à venir. Remplissez pour analyser un match passé.
+  </div>
+</div>
+        
           <button
             onClick={analyzeMatch}
             disabled={isAnalyzing}
