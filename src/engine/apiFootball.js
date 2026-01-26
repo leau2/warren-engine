@@ -53,79 +53,92 @@ class ApiFootballService {
     };
   }
 
-  async getLastMatches(teamId, count = 7) {
+  async getLastMatches(teamId, count = 7, beforeDate = null) {
+  if (beforeDate) {
+    // Récupérer matchs AVANT une date précise
+    const dateStr = beforeDate.split('T')[0]; // Format YYYY-MM-DD
+    console.log(`[API] Fetching matches before ${dateStr} for team ${teamId}`);
+    
+    const fixtures = await this.request(`/fixtures?team=${teamId}&to=${dateStr}&last=50`);
+    return fixtures || [];
+  } else {
+    // Comportement normal : derniers matchs
     const fixtures = await this.request(`/fixtures?team=${teamId}&last=${count}`);
     return fixtures || [];
   }
+}
 
-  async getMatchEvents(fixtureId) {
-    try {
-      const events = await this.request(`/fixtures/events?fixture=${fixtureId}`);
-      
-      if (!events || events.length === 0) {
-        console.warn(`[API] No events for fixture ${fixtureId}`);
-      } else {
-        console.log(`[API] Fixture ${fixtureId}: ${events.length} events`);
+async getTeamData(teamName, matchDate = null) {
+  console.log('[API] getTeamData START:', teamName, 'matchDate:', matchDate);
+  
+  // 1. Trouver l'ID de l'équipe
+  const team = await this.findTeamId(teamName);
+  console.log('[API] Team found:', team.id, team.name);
+  
+  // 2. Récupérer les matchs (avant une date si spécifiée)
+  console.log('[API] Fetching matches for team ID:', team.id);
+  const allFixtures = await this.getLastMatches(team.id, 7, matchDate);
+  console.log('[API] Fixtures received:', allFixtures.length);
+  
+  // 3. Filtrer pour exclure le match analysé lui-même
+  let fixtures = allFixtures;
+  
+  if (matchDate) {
+    const matchDateTime = new Date(matchDate).getTime();
+    
+    // Exclure les matchs le jour même ou après
+    fixtures = allFixtures.filter(f => {
+      const fixtureDate = new Date(f.fixture.date).getTime();
+      const daysDiff = (matchDateTime - fixtureDate) / (1000 * 60 * 60 * 24);
+      return daysDiff > 0.5; // Au moins 12h d'écart
+    });
+    
+    console.log('[API] After filtering match day:', fixtures.length, 'matches');
+  }
+  
+  // 4. Garder seulement les 7 plus récents
+  fixtures = fixtures.slice(0, 7);
+  console.log('[API] Final:', fixtures.length, 'matches for analysis');
+  
+  // 5. Pour chaque match, récupérer les événements
+  console.log('[API] Fetching events for each match...');
+  const matchesWithEvents = await Promise.all(
+    fixtures.map(async (fixture) => {
+      let events = [];
+      try {
+        events = await this.getMatchEvents(fixture.fixture.id);
+      } catch (error) {
+        console.error(`[API] Failed events for fixture ${fixture.fixture.id}, using empty`);
+        events = [];
       }
       
-      return events || [];
-    } catch (error) {
-      console.error(`[API] Failed to get events for fixture ${fixtureId}:`, error.message);
-      return [];
-    }
-  }
-
-  async getTeamData(teamName) {
-    console.log('[API] getTeamData START:', teamName);
-    
-    // 1. Trouver l'ID de l'équipe
-    const team = await this.findTeamId(teamName);
-    console.log('[API] Team found:', team.id, team.name);
-    
-    // 2. Récupérer les 7 derniers matchs
-    console.log('[API] Fetching last 7 matches for team ID:', team.id);
-    const fixtures = await this.getLastMatches(team.id, 7);
-    console.log('[API] Fixtures received:', fixtures.length);
-    
-    // 3. Pour chaque match, récupérer les événements
-    console.log('[API] Fetching events for each match...');
-    const matchesWithEvents = await Promise.all(
-      fixtures.map(async (fixture) => {
-        let events = [];
-        try {
-          events = await this.getMatchEvents(fixture.fixture.id);
-        } catch (error) {
-          console.error(`[API] Failed events for fixture ${fixture.fixture.id}, using empty`);
-          events = [];
-        }
-        
-        const isHome = fixture.teams.home.id === team.id;
-        const opponent = isHome ? fixture.teams.away.name : fixture.teams.home.name;
-        const opponentId = isHome ? fixture.teams.away.id : fixture.teams.home.id;
-        
-        return {
-          date: fixture.fixture.date,
-          location: isHome ? 'Domicile' : 'Extérieur',
-          opponent: opponent,
-          opponentId: opponentId,
-          score: {
-            team: isHome ? fixture.goals.home : fixture.goals.away,
-            opponent: isHome ? fixture.goals.away : fixture.goals.home
-          },
-          result: this.getResult(fixture, isHome),
-          events: this.parseEvents(events, team.name, opponent)
-        };
-      })
-    );
-    
-    console.log('[API] getTeamData COMPLETE:', teamName);
-    
-    return {
-      teamId: team.id,
-      teamName: team.name,
-      matches: matchesWithEvents
-    };
-  }
+      const isHome = fixture.teams.home.id === team.id;
+      const opponent = isHome ? fixture.teams.away.name : fixture.teams.home.name;
+      const opponentId = isHome ? fixture.teams.away.id : fixture.teams.home.id;
+      
+      return {
+        date: fixture.fixture.date,
+        location: isHome ? 'Domicile' : 'Extérieur',
+        opponent: opponent,
+        opponentId: opponentId,
+        score: {
+          team: isHome ? fixture.goals.home : fixture.goals.away,
+          opponent: isHome ? fixture.goals.away : fixture.goals.home
+        },
+        result: this.getResult(fixture, isHome),
+        events: this.parseEvents(events, team.name, opponent)
+      };
+    })
+  );
+  
+  console.log('[API] getTeamData COMPLETE:', teamName);
+  
+  return {
+    teamId: team.id,
+    teamName: team.name,
+    matches: matchesWithEvents
+  };
+}
 
   getResult(fixture, isHome) {
     const teamGoals = isHome ? fixture.goals.home : fixture.goals.away;
