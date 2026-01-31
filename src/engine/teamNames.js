@@ -258,6 +258,7 @@ const TEAM_NAMES = {
   'bratislava': 'Slovan Bratislava',
   'dinamo zagreb': 'Dinamo Zagreb',
   'zagreb': 'Dinamo Zagreb'
+  'copenhagen': 'FC Copenhagen',
 };
 
 export function normalizeTeamName(name) {
