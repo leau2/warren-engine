@@ -97,6 +97,7 @@ const TEAM_NAMES = {
   'las palmas': 'Las Palmas',
   'alaves': 'Deportivo Alaves',
   'deportivo alaves': 'Deportivo Alaves',
+  'espanyol': 'Espanyol',
   
   // ==================== BUNDESLIGA ====================
   'bayern': 'Bayern München',
