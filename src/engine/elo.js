@@ -599,7 +599,7 @@ export default {
   "Querétaro": 1400,
   "RB Leipzig": 1741,
   "RCA Raja Casablanca Athletic": 1550,
-  "RCD Espanyol": 1665,
+  "Espanyol": 1665,
   "RS Berkane": 1536,
   "Anderlecht": 1579,
   "Racing Club": 1413,
