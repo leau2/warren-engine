@@ -164,6 +164,8 @@ const TEAM_NAMES = {
   'sampdoria': 'Sampdoria',
   'pisa': 'Pisa',
   'cremonese': 'Cremonese',
+  'parme': 'Parma',
+  'parma': 'Parma',
   
   // ==================== EREDIVISIE ====================
   'ajax': 'Ajax',
