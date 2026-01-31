@@ -568,7 +568,7 @@ export default {
   "Paradou AC": 1384,
   "Paris FC": 1468,
   "Paris Saint Germain": 1997,
-  "Parma Calcio 1913": 1561,
+  "Parma": 1561,
   "Partizan Beograd": 1599,
   "Patronato de Parana": 1484,
   "Penybont FC": 1389,
