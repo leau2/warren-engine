@@ -421,7 +421,7 @@ export default {
   "KuPS": 1551,
   "Kuban' Krasnodar": 1406,
   "Kyoto Sanga FC": 1427,
-  "København": 1568,
+  "FC Copenhagen": 1568,
   "L.A. Firpo": 1395,
   "LASK Linz": 1482,
   "LD Alajuelense": 1536,
