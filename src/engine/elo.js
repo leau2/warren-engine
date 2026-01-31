@@ -537,7 +537,7 @@ export default {
   "Oleksandriya": 1416,
   "Olimpia": 1442,
   "Olimpija Ljubljana": 1495,
-  "Olympiakos": 1733,
+  "Olympiakos Piraeus": 1733,
   "Olympiakos Volos": 1457,
   "Olympic Club de Safi": 1384,
   "Olympique de Bamako": 1382,
