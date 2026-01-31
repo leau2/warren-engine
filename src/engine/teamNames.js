@@ -257,7 +257,7 @@ const TEAM_NAMES = {
   'slovan bratislava': 'Slovan Bratislava',
   'bratislava': 'Slovan Bratislava',
   'dinamo zagreb': 'Dinamo Zagreb',
-  'zagreb': 'Dinamo Zagreb'
+  'zagreb': 'Dinamo Zagreb',
   'copenhagen': 'FC Copenhagen',
 };
 
