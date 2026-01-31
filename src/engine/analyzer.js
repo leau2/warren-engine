@@ -29,7 +29,7 @@ class WarrenAnalyzer {
       verdict: verdict,
       metadata: {
         timestamp: new Date().toISOString(),
-        version: '2.0.0' // Version mise à jour
+        version: '2.0.0'
       }
     };
   }
@@ -45,8 +45,17 @@ class WarrenAnalyzer {
     teamData.matches.forEach(match => {
       const opponentElo = this.findElo(match.opponent);
       
-      // Enrichir les événements du match
-      const enrichedEvents = this.biasDetector.enrichMatchEvents(match);
+      // Enrichir les événements du match (gestion sécurisée)
+      const enrichedEvents = match.events 
+        ? this.biasDetector.enrichMatchEvents(match)
+        : {
+            redCards: [],
+            penalties: [],
+            goals90Plus: [],
+            goalsAfterRed: 0,
+            leadInMatch: false,
+            cameBack: false
+          };
       
       // NOUVELLE QUALIFICATION avec qualifyMatch()
       const qualification = this.eloEngine.qualifyMatch(
@@ -79,7 +88,7 @@ class WarrenAnalyzer {
         result: match.result,
         
         // NOUVELLE QUALIFICATION
-        qualification: qualification, // { qualification, impactForme, explication, ... }
+        qualification: qualification,
         
         // Ancienne perf (compatibilité)
         performance: performance,
@@ -107,14 +116,11 @@ class WarrenAnalyzer {
       record: record,
       matches: matches,
       fatigue: fatigue,
-      scoreForme: scoreForme, // Score sur 10
+      scoreForme: scoreForme,
       formeSummary: this.summarizeForm(scoreForme, fatigue)
     };
   }
 
-  /**
-   * Mapper impactForme vers score numérique
-   */
   mapImpactToScore(impactForme) {
     const mapping = {
       'EXCELLENT': 10,
@@ -130,19 +136,13 @@ class WarrenAnalyzer {
     return mapping[impactForme] || 4;
   }
 
-  /**
-   * Calculer score de forme sur 10
-   */
   calculateFormeScore(scores) {
     if (scores.length === 0) return 5;
     
     const sum = scores.reduce((a, b) => a + b, 0);
-    return Math.round((sum / scores.length) * 10) / 10; // Arrondi à 1 décimale
+    return Math.round((sum / scores.length) * 10) / 10;
   }
 
-  /**
-   * Compter records bruts (pour stats)
-   */
   countRecords(matches) {
     let totalV = 0, totalN = 0, totalD = 0;
     let homeV = 0, homeN = 0, homeD = 0;
@@ -170,9 +170,6 @@ class WarrenAnalyzer {
     };
   }
 
-  /**
-   * Résumé de forme
-   */
   summarizeForm(scoreForme, fatigue) {
     let quality = 'Moyenne';
     
@@ -190,7 +187,6 @@ class WarrenAnalyzer {
   }
 
   calculateStats(team1, team2) {
-    // Over 2.5
     const team1Over = team1.matches.filter(m => 
       (m.score.team + m.score.opponent) > 2.5
     ).length;
@@ -199,7 +195,6 @@ class WarrenAnalyzer {
       (m.score.team + m.score.opponent) > 2.5
     ).length;
     
-    // BTTS
     const team1Btts = team1.matches.filter(m => 
       m.score.team > 0 && m.score.opponent > 0
     ).length;
@@ -225,11 +220,9 @@ class WarrenAnalyzer {
   generateVerdict(team1, team2, stats) {
     const eloGap = this.eloEngine.calculateGap(team1.elo, team2.elo);
     
-    // BTTS/Over
     const bttsYes = stats.btts.tendency === 'Oui';
     const overYes = stats.over25.tendency === 'Over 2.5';
     
-    // NOUVELLE LOGIQUE - Basée sur score de forme
     const formeGap = team1.scoreForme - team2.scoreForme;
     
     let prono1x2 = 'X';
@@ -388,7 +381,7 @@ class WarrenAnalyzer {
       risks.push('Forme très équilibrée, match incertain');
     }
     
-    if (eloGap > 100) {
+    if (Math.abs(eloGap) > 100) {
       risks.push(`Écart ELO notable (+${Math.abs(eloGap)}) peut peser`);
     }
     
