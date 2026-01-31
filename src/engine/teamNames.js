@@ -95,11 +95,11 @@ const TEAM_NAMES = {
   'celta vigo': 'Celta Vigo',
   'mallorca': 'Mallorca',
   'las palmas': 'Las Palmas',
-  'alaves': 'Alaves',
+  'alaves': 'Deportivo Alaves',
   'deportivo alaves': 'Deportivo Alaves',
   
   // ==================== BUNDESLIGA ====================
-  'bayern': 'Bayern Munich',
+  'bayern': 'Bayern München',
   'bayern munich': 'Bayern München',
   'dortmund': 'Borussia Dortmund',
   'bvb': 'Borussia Dortmund',
