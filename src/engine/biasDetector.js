@@ -3,7 +3,6 @@
 
 class BiasDetector {
   constructor() {
-    // Seuils conservés pour compatibilité
     this.THRESHOLDS = {
       FAVORI_WINS_5: 3,
       FAVORI_WINS_7: 4,
@@ -22,17 +21,6 @@ class BiasDetector {
    * Collecte toutes les infos pour qualifyMatch()
    */
   enrichMatchEvents(match) {
-    if (!match || !match.events) {
-      return {
-        redCards: [],
-        penalties: [],
-        goals90Plus: [],
-        goalsAfterRed: 0,
-        leadInMatch: false,
-        cameBack: false
-      };
-    }
-
     const events = {
       redCards: [],
       penalties: [],
@@ -42,36 +30,63 @@ class BiasDetector {
       cameBack: false
     };
 
-    // Cartons rouges
-    if (match.events.redCard) {
-      events.redCards.push({
-        isTeam: match.events.redCard.isTeam,
-        minute: match.events.redCard.minute
-      });
-
-      // Calculer buts marqués APRÈS le rouge
-      events.goalsAfterRed = this.countGoalsAfterMinute(
-        match,
-        match.events.redCard.minute
-      );
+    if (!match || !match.events) {
+      return events;
     }
 
-    // Penalties
+    // Cartons rouges (gestion sécurisée)
+    if (match.events.redCard) {
+      const red = match.events.redCard;
+      events.redCards.push({
+        isTeam: red.isTeam || false,
+        minute: red.minute || 0
+      });
+
+      events.goalsAfterRed = this.countGoalsAfterMinute(match, red.minute || 0);
+    } else if (match.events.redCards && match.events.redCards.length > 0) {
+      const red = match.events.redCards[0];
+      events.redCards.push({
+        isTeam: red.isTeam || false,
+        minute: red.minute || 0
+      });
+      
+      events.goalsAfterRed = this.countGoalsAfterMinute(match, red.minute || 0);
+    }
+
+    // Penalties (gestion sécurisée singulier ET pluriel)
     if (match.events.penalty) {
-      const isDecisive = this.isPenaltyDecisive(match, match.events.penalty);
+      const pen = match.events.penalty;
+      const isDecisive = this.isPenaltyDecisive(match, pen);
       events.penalties.push({
-        isTeam: match.events.penalty.isTeam,
-        minute: match.events.penalty.minute,
+        isTeam: pen.isTeam || false,
+        minute: pen.minute || 0,
+        decisive: isDecisive
+      });
+    } else if (match.events.penalties && match.events.penalties.length > 0) {
+      const pen = match.events.penalties[0];
+      const isDecisive = this.isPenaltyDecisive(match, pen);
+      events.penalties.push({
+        isTeam: pen.isTeam || false,
+        minute: pen.minute || 0,
         decisive: isDecisive
       });
     }
 
-    // Buts 90'+
+    // Buts 90'+ (gestion sécurisée)
     if (match.events.goal90Plus) {
-      const isDecisive = this.isGoal90Decisive(match, match.events.goal90Plus);
+      const goal = match.events.goal90Plus;
+      const isDecisive = this.isGoal90Decisive(match, goal);
       events.goals90Plus.push({
-        isTeam: match.events.goal90Plus.isTeam,
-        minute: match.events.goal90Plus.minute,
+        isTeam: goal.isTeam || false,
+        minute: goal.minute || 90,
+        decisive: isDecisive
+      });
+    } else if (match.events.goals90Plus && match.events.goals90Plus.length > 0) {
+      const goal = match.events.goals90Plus[0];
+      const isDecisive = this.isGoal90Decisive(match, goal);
+      events.goals90Plus.push({
+        isTeam: goal.isTeam || false,
+        minute: goal.minute || 90,
         decisive: isDecisive
       });
     }
@@ -89,15 +104,13 @@ class BiasDetector {
    * Compter les buts marqués après une certaine minute
    */
   countGoalsAfterMinute(match, minute) {
-    if (!match.events || !match.events.goals) return 0;
+    if (!match || !match.score) return 0;
     
-    // Si pas de détail des buts, on estime
-    // Si rouge tôt (< 60') et victoire large, on suppose plusieurs buts après
     const minutesLeft = 90 - minute;
     const scoreDiff = Math.abs(match.score.team - match.score.opponent);
     
     if (minutesLeft >= 30 && scoreDiff >= 2) {
-      return Math.min(scoreDiff, 3); // Estimation conservative
+      return Math.min(scoreDiff, 3);
     }
     
     if (minutesLeft >= 20 && scoreDiff >= 1) {
@@ -111,9 +124,10 @@ class BiasDetector {
    * Vérifier si penalty était décisif
    */
   isPenaltyDecisive(match, penaltyInfo) {
-    if (!match.score) return false;
+    if (!match || !match.score || !penaltyInfo) return false;
 
-    const { isTeam, minute } = penaltyInfo;
+    const isTeam = penaltyInfo.isTeam || false;
+    const minute = penaltyInfo.minute || 0;
     const { team, opponent } = match.score;
 
     // Cas 1 : Match gagné 1-0 sur penalty unique
@@ -128,7 +142,6 @@ class BiasDetector {
 
     // Cas 3 : Penalty tardif (75'+) qui change le résultat
     if (minute >= 75) {
-      // Si score serré (1 but), le penalty est probablement décisif
       if (Math.abs(team - opponent) <= 1) {
         return true;
       }
@@ -141,37 +154,32 @@ class BiasDetector {
    * Vérifier si but 90'+ était décisif
    */
   isGoal90Decisive(match, goal90Info) {
-    if (!match.score || !goal90Info.scoreBefore) return false;
+    if (!match || !match.score || !goal90Info) return false;
+    if (!goal90Info.scoreBefore) return false;
 
     const resultBefore = this.getResultFromScore(goal90Info.scoreBefore);
     const resultAfter = this.getResult(match);
 
-    // Si le résultat a changé → décisif
     return resultBefore !== resultAfter;
   }
 
   /**
    * Vérifier si l'équipe a mené dans le match
-   * (Nécessite données détaillées - sinon estimation)
    */
   didTeamLead(match) {
-    // Si on a scoreBefore dans goal90Plus, on peut déduire
+    if (!match || !match.score) return false;
+
+    // Si on a scoreBefore dans goal90Plus
     if (match.events?.goal90Plus?.scoreBefore) {
       const { team, opponent } = match.events.goal90Plus.scoreBefore;
       if (team > opponent) return true;
-    }
-
-    // Si on a l'historique des buts (timeline)
-    if (match.events?.timeline) {
-      // Parcourir timeline pour voir si équipe a mené
-      // TODO: implémenter si API fournit timeline
     }
 
     // Estimation : si défaite serrée (1 but) → peut-être a mené
     if (this.getResult(match) === 'defaite') {
       const scoreDiff = Math.abs(match.score.team - match.score.opponent);
       if (scoreDiff === 1 && match.score.team >= 1) {
-        return true; // Estimation conservative
+        return true;
       }
     }
 
@@ -180,9 +188,10 @@ class BiasDetector {
 
   /**
    * Vérifier si l'équipe est revenue au score
-   * Ex: perdait 2-0, revient 2-2
    */
   didTeamComeBack(match) {
+    if (!match || !match.score) return false;
+
     // Si on a scoreBefore dans goal90Plus
     if (match.events?.goal90Plus?.scoreBefore) {
       const before = match.events.goal90Plus.scoreBefore;
@@ -193,7 +202,7 @@ class BiasDetector {
         return true;
       }
       
-      // Si perdait avant et gagne après (remontada)
+      // Si perdait avant et gagne après
       if (before.team < before.opponent && after.team > after.opponent) {
         return true;
       }
@@ -201,7 +210,7 @@ class BiasDetector {
 
     // Estimation : si match nul avec plusieurs buts marqués
     if (this.getResult(match) === 'nul' && match.score.team >= 2) {
-      return true; // Probable qu'il y ait eu un comeback
+      return true;
     }
 
     return false;
@@ -218,7 +227,7 @@ class BiasDetector {
   }
 
   getResult(match) {
-    if (!match.score) return 'nul';
+    if (!match || !match.score) return 'nul';
     return this.getResultFromScore(match.score);
   }
 
@@ -322,7 +331,7 @@ class BiasDetector {
 
     if (opponentForm.losses7 <= this.THRESHOLDS.ANTI_PIEGE_LOSSES_7) {
       allowed = false;
-      reasons.push(`ANTI-PIÈGE: Adversaire ne perd pas assez (${opponentForm.losses7} défaites/7 ≤ ${this.THRESHOLDS.ANTI_PIEGE_LOSSES_7})`);
+      reasons.push(`ANTI-PIÈGE: Adversaire ne perd pas assez`);
       return { allowed: false, reasons, antiTrap: true };
     }
 
@@ -332,7 +341,7 @@ class BiasDetector {
 
     if (!isFavoriSolid) {
       allowed = false;
-      reasons.push(`Favori pas assez dominant (wins5=${teamForm.wins5}/${this.THRESHOLDS.FAVORI_WINS_5}, wins7=${teamForm.wins7}/${this.THRESHOLDS.FAVORI_WINS_7})`);
+      reasons.push(`Favori pas assez dominant`);
     }
 
     const isOpponentFragile = 
@@ -348,11 +357,11 @@ class BiasDetector {
 
     if (teamForm.draws7 >= this.THRESHOLDS.TROP_DE_NULS) {
       allowed = false;
-      reasons.push(`ANTI-PIÈGE: Trop de nuls (${teamForm.draws7}/7)`);
+      reasons.push(`ANTI-PIÈGE: Trop de nuls`);
     }
 
     if (allowed) {
-      reasons.push('Asymétrie suffisante pour victoire directe');
+      reasons.push('Asymétrie suffisante');
     }
 
     return { allowed, reasons, antiTrap: false };
@@ -431,9 +440,10 @@ class BiasDetector {
   }
 
   analyzePenalty(match, penaltyInfo) {
-    if (!penaltyInfo || !match.score) return null;
+    if (!penaltyInfo || !match || !match.score) return null;
 
-    const { isTeam, minute } = penaltyInfo;
+    const isTeam = penaltyInfo.isTeam || false;
+    const minute = penaltyInfo.minute || 0;
     const { team: scoreTeam, opponent: scoreOpponent } = match.score;
 
     const tags = [];
@@ -473,7 +483,8 @@ class BiasDetector {
   analyzeRedCard(match, redCardInfo) {
     if (!redCardInfo) return null;
 
-    const { isTeam, minute } = redCardInfo;
+    const isTeam = redCardInfo.isTeam || false;
+    const minute = redCardInfo.minute || 0;
 
     const tags = [];
     let confidenceDelta = 0;
@@ -503,9 +514,11 @@ class BiasDetector {
   }
 
   analyzeGoal90Plus(match, goal90Info) {
-    if (!goal90Info || !match.score) return null;
+    if (!goal90Info || !match || !match.score) return null;
 
-    const { isTeam, minute, scoreBefore } = goal90Info;
+    const isTeam = goal90Info.isTeam || false;
+    const minute = goal90Info.minute || 90;
+    const scoreBefore = goal90Info.scoreBefore;
 
     const tags = [];
     let confidenceDelta = -10;
@@ -540,7 +553,8 @@ class BiasDetector {
   analyzeVarDisallowed(match, varInfo) {
     if (!varInfo) return null;
 
-    const { isTeam, minute } = varInfo;
+    const isTeam = varInfo.isTeam || false;
+    const minute = varInfo.minute || 0;
     const tags = ['var_goal_disallowed'];
     let confidenceDelta = 0;
     let message = '';
