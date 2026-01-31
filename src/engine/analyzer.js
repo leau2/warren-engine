@@ -1,5 +1,5 @@
-// Warren Engine - Main Analyzer
-// Coordonne toute l'analyse et applique la logique Warren
+// Warren Engine v2 - Main Analyzer
+// Coordonne toute l'analyse avec logique Warren 2.0
 
 import EloEngine from './eloEngine.js';
 import BiasDetector from './biasDetector.js';
@@ -12,14 +12,14 @@ class WarrenAnalyzer {
   }
 
   analyze(team1Data, team2Data) {
-    // Analyser chaque équipe
+    // Analyser chaque équipe avec NOUVELLE LOGIQUE
     const team1Analysis = this.analyzeTeam(team1Data);
     const team2Analysis = this.analyzeTeam(team2Data);
     
     // Stats BTTS/Over
     const stats = this.calculateStats(team1Analysis, team2Analysis);
     
-    // Générer verdict (avec logique Warren en arrière-plan)
+    // Générer verdict
     const verdict = this.generateVerdict(team1Analysis, team2Analysis, stats);
     
     return {
@@ -29,7 +29,7 @@ class WarrenAnalyzer {
       verdict: verdict,
       metadata: {
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '2.0.0' // Version mise à jour
       }
     };
   }
@@ -38,31 +38,26 @@ class WarrenAnalyzer {
     const teamElo = this.findElo(teamData.teamName);
     const matches = [];
     
-    let victories = 0;
-    let draws = 0;
-    let defeats = 0;
-    let homeRecord = { v: 0, d: 0, n: 0 };
-    let awayRecord = { v: 0, d: 0, n: 0 };
+    // Compteurs pour analyse globale
+    let scoresForme = [];
     
-    // Analyser chaque match
+    // Analyser chaque match avec NOUVELLE LOGIQUE
     teamData.matches.forEach(match => {
       const opponentElo = this.findElo(match.opponent);
-      const eloGap = this.eloEngine.calculateGap(teamElo, opponentElo);
       
-      // Détecter biais (anciennes méthodes de compatibilité)
-      const penaltyBias = match.events.penalties && match.events.penalties.length > 0 
-        ? this.biasDetector.analyzePenaltyOld(match, match.events.penalties[0])
-        : null;
+      // Enrichir les événements du match
+      const enrichedEvents = this.biasDetector.enrichMatchEvents(match);
       
-      const redCardBias = match.events.redCards && match.events.redCards.length > 0
-        ? this.biasDetector.analyzeRedCardOld(match, match.events.redCards[0])
-        : null;
+      // NOUVELLE QUALIFICATION avec qualifyMatch()
+      const qualification = this.eloEngine.qualifyMatch(
+        teamElo,
+        opponentElo,
+        match.result,
+        match.score,
+        enrichedEvents
+      );
       
-      const goal90Bias = match.events.goals90Plus && match.events.goals90Plus.length > 0
-        ? this.biasDetector.analyzeGoal90PlusOld(match, match.events.goals90Plus[0], eloGap)
-        : null;
-      
-      // Qualifier performance
+      // Ancienne qualification (gardée pour compatibilité affichage)
       const performance = this.eloEngine.qualifyPerformance(
         match.result,
         teamElo,
@@ -79,71 +74,116 @@ class WarrenAnalyzer {
         opponent: match.opponent,
         opponentElo: opponentElo,
         opponentRating: opponentRating,
-        eloGap: eloGap,
+        eloGap: qualification.eloGap,
         score: match.score,
         result: match.result,
+        
+        // NOUVELLE QUALIFICATION
+        qualification: qualification, // { qualification, impactForme, explication, ... }
+        
+        // Ancienne perf (compatibilité)
         performance: performance,
-        biases: {
-          penalty: penaltyBias,
-          redCard: redCardBias,
-          goal90: goal90Bias
-        },
-        events: match.events
+        
+        events: enrichedEvents
       });
       
-      // Compter résultats
-      if (match.result === 'victoire') victories++;
-      if (match.result === 'nul') draws++;
-      if (match.result === 'defaite') defeats++;
-      
-      if (match.location === 'Domicile') {
-        if (match.result === 'victoire') homeRecord.v++;
-        if (match.result === 'nul') homeRecord.n++;
-        if (match.result === 'defaite') homeRecord.d++;
-      } else {
-        if (match.result === 'victoire') awayRecord.v++;
-        if (match.result === 'nul') awayRecord.n++;
-        if (match.result === 'defaite') awayRecord.d++;
-      }
+      // Collecter scores de forme
+      scoresForme.push(this.mapImpactToScore(qualification.impactForme));
     });
+    
+    // Calculer score de forme global
+    const scoreForme = this.calculateFormeScore(scoresForme);
     
     // Détecter fatigue
     const fatigue = this.biasDetector.detectFatigue(teamData.matches);
+    
+    // Compter résultats bruts (pour stats)
+    const record = this.countRecords(matches);
     
     return {
       teamName: teamData.teamName,
       elo: teamElo,
       rating: this.eloEngine.qualifyTeam(teamElo),
-      record: {
-        total: { v: victories, n: draws, d: defeats },
-        home: homeRecord,
-        away: awayRecord
-      },
+      record: record,
       matches: matches,
       fatigue: fatigue,
-      formeSummary: this.summarizeForm(matches, fatigue)
+      scoreForme: scoreForme, // Score sur 10
+      formeSummary: this.summarizeForm(scoreForme, fatigue)
     };
   }
 
-  summarizeForm(matches, fatigue) {
-    const recentMatches = matches.slice(0, 5);
-    const goodPerformances = recentMatches.filter(m => 
-      m.performance?.stars && (m.performance.stars.includes('⭐⭐⭐') || m.performance.stars.includes('⭐⭐'))
-    ).length;
+  /**
+   * Mapper impactForme vers score numérique
+   */
+  mapImpactToScore(impactForme) {
+    const mapping = {
+      'EXCELLENT': 10,
+      'BON': 7,
+      'POSITIF': 7,
+      'OK': 5,
+      'NEUTRE': 4,
+      'MOYEN': 3,
+      'MAUVAIS': 1,
+      'TRÈS MAUVAIS': 0
+    };
     
-    const biasedResults = recentMatches.filter(m =>
-      m.biases?.penalty?.severity?.includes('NEGATIF') ||
-      m.biases?.redCard?.severity?.includes('NEGATIF')
-    ).length;
+    return mapping[impactForme] || 4;
+  }
+
+  /**
+   * Calculer score de forme sur 10
+   */
+  calculateFormeScore(scores) {
+    if (scores.length === 0) return 5;
     
-    let formQuality = 'Moyenne';
-    if (goodPerformances >= 3) formQuality = 'Bonne';
-    if (goodPerformances >= 4) formQuality = 'Excellente';
-    if (goodPerformances <= 1) formQuality = 'Faible';
+    const sum = scores.reduce((a, b) => a + b, 0);
+    return Math.round((sum / scores.length) * 10) / 10; // Arrondi à 1 décimale
+  }
+
+  /**
+   * Compter records bruts (pour stats)
+   */
+  countRecords(matches) {
+    let totalV = 0, totalN = 0, totalD = 0;
+    let homeV = 0, homeN = 0, homeD = 0;
+    let awayV = 0, awayN = 0, awayD = 0;
+    
+    matches.forEach(m => {
+      if (m.result === 'victoire') {
+        totalV++;
+        if (m.location === 'Domicile') homeV++; else awayV++;
+      }
+      if (m.result === 'nul') {
+        totalN++;
+        if (m.location === 'Domicile') homeN++; else awayN++;
+      }
+      if (m.result === 'defaite') {
+        totalD++;
+        if (m.location === 'Domicile') homeD++; else awayD++;
+      }
+    });
     
     return {
-      quality: formQuality,
-      biasCount: biasedResults,
+      total: { v: totalV, n: totalN, d: totalD },
+      home: { v: homeV, n: homeN, d: homeD },
+      away: { v: awayV, n: awayN, d: awayD }
+    };
+  }
+
+  /**
+   * Résumé de forme
+   */
+  summarizeForm(scoreForme, fatigue) {
+    let quality = 'Moyenne';
+    
+    if (scoreForme >= 7.5) quality = 'Excellente';
+    else if (scoreForme >= 6) quality = 'Bonne';
+    else if (scoreForme >= 4) quality = 'Moyenne';
+    else quality = 'Faible';
+    
+    return {
+      quality: quality,
+      score: scoreForme,
       fatigue: fatigue ? 'Oui' : 'Non',
       note: fatigue ? 'Performance réduite attendue' : ''
     };
@@ -185,43 +225,12 @@ class WarrenAnalyzer {
   generateVerdict(team1, team2, stats) {
     const eloGap = this.eloEngine.calculateGap(team1.elo, team2.elo);
     
-    // Calculer tendances BTTS/Over
-    const team1Btts = team1.matches?.filter(m => m.score?.team > 0 && m.score?.opponent > 0).length || 0;
-    const team2Btts = team2.matches?.filter(m => m.score?.team > 0 && m.score?.opponent > 0).length || 0;
-    const bttsYes = (team1Btts + team2Btts) >= 8;
+    // BTTS/Over
+    const bttsYes = stats.btts.tendency === 'Oui';
+    const overYes = stats.over25.tendency === 'Over 2.5';
     
-    const team1Over = team1.matches?.filter(m => (m.score?.team + m.score?.opponent) > 2.5).length || 0;
-    const team2Over = team2.matches?.filter(m => (m.score?.team + m.score?.opponent) > 2.5).length || 0;
-    const overYes = (team1Over + team2Over) >= 8;
-    
-    // ANALYSER LA QUALITÉ DES PERFORMANCES (selon ELO adversaires)
-    // Compter les bonnes performances (⭐⭐⭐ et ⭐⭐)
-    const team1GoodPerfs = team1.matches?.filter(m => 
-      m.performance?.stars?.includes('⭐⭐⭐') || m.performance?.stars?.includes('⭐⭐')
-    ).length || 0;
-    
-    const team2GoodPerfs = team2.matches?.filter(m => 
-      m.performance?.stars?.includes('⭐⭐⭐') || m.performance?.stars?.includes('⭐⭐')
-    ).length || 0;
-    
-    // Compter les mauvaises performances (☆☆☆)
-    const team1BadPerfs = team1.matches?.filter(m => 
-      m.performance?.stars?.includes('☆☆☆')
-    ).length || 0;
-    
-    const team2BadPerfs = team2.matches?.filter(m => 
-      m.performance?.stars?.includes('☆☆☆')
-    ).length || 0;
-    
-    // Forme brute (W/D/L)
-    const team1Wins = team1.record?.total?.v || 0;
-    const team2Wins = team2.record?.total?.v || 0;
-    const team1Losses = team1.record?.total?.d || 0;
-    const team2Losses = team2.record?.total?.d || 0;
-    
-    // Score de qualité : bonnes perf - mauvaises perf + victoires
-    const team1QualityScore = team1GoodPerfs - team1BadPerfs + team1Wins;
-    const team2QualityScore = team2GoodPerfs - team2BadPerfs + team2Wins;
+    // NOUVELLE LOGIQUE - Basée sur score de forme
+    const formeGap = team1.scoreForme - team2.scoreForme;
     
     let prono1x2 = 'X';
     let confidence = 5;
@@ -230,29 +239,29 @@ class WarrenAnalyzer {
     
     // RÈGLE 1 : FATIGUE (toujours prioritaire)
     if (team1.fatigue && !team2.fatigue) {
-      prono1x2 = 'X';
-      confidence = 6;
-      scoreAttendu = bttsYes ? '1-1' : '0-0';
+      prono1x2 = 'X2';
+      confidence = 7;
+      scoreAttendu = bttsYes ? '1-1' : '0-1';
       raisons = [
         `${team1.teamName} fatigué (${team1.fatigue.matchCount} matchs en ${team1.fatigue.period})`,
-        `${team2.teamName} frais, avantage physique`,
-        `Forme: ${team1Wins}W vs ${team2Wins}W`
+        `${team2.teamName} frais, avantage physique décisif`,
+        `Forme: ${team1.scoreForme}/10 vs ${team2.scoreForme}/10`
       ];
     }
     else if (team2.fatigue && !team1.fatigue) {
-      prono1x2 = 'X';
-      confidence = 6;
-      scoreAttendu = bttsYes ? '1-1' : '0-0';
+      prono1x2 = '1X';
+      confidence = 7;
+      scoreAttendu = bttsYes ? '1-1' : '1-0';
       raisons = [
         `${team2.teamName} fatigué (${team2.fatigue.matchCount} matchs en ${team2.fatigue.period})`,
-        `${team1.teamName} frais, avantage physique`,
-        `Forme: ${team1Wins}W vs ${team2Wins}W`
+        `${team1.teamName} frais, avantage physique décisif`,
+        `Forme: ${team1.scoreForme}/10 vs ${team2.scoreForme}/10`
       ];
     }
-    // RÈGLE 2 : DIFFÉRENCE DE QUALITÉ FORTE (écart >= 4)
-    else if (team1QualityScore - team2QualityScore >= 4) {
+    // RÈGLE 2 : ÉCART DE FORME TRÈS IMPORTANT (≥ 3 points)
+    else if (formeGap >= 3) {
       prono1x2 = '1';
-      confidence = 7;
+      confidence = 8;
       
       if (bttsYes && overYes) scoreAttendu = '3-1';
       else if (bttsYes && !overYes) scoreAttendu = '2-1';
@@ -260,14 +269,14 @@ class WarrenAnalyzer {
       else scoreAttendu = '2-0';
       
       raisons = [
-        `${team1.teamName} forme nettement supérieure`,
-        `Qualité: ${team1GoodPerfs} bonnes perf vs ${team2BadPerfs} mauvaises perf (adv)`,
-        `Bilan: ${team1Wins}W-${team1Losses}L vs ${team2Wins}W-${team2Losses}L`
+        `${team1.teamName} forme nettement supérieure (${team1.scoreForme}/10 vs ${team2.scoreForme}/10)`,
+        `Qualité récente démontrée sur 7 matchs`,
+        `Écart de ${formeGap.toFixed(1)} points de forme`
       ];
     }
-    else if (team2QualityScore - team1QualityScore >= 4) {
+    else if (formeGap <= -3) {
       prono1x2 = '2';
-      confidence = 7;
+      confidence = 8;
       
       if (bttsYes && overYes) scoreAttendu = '1-3';
       else if (bttsYes && !overYes) scoreAttendu = '1-2';
@@ -275,13 +284,13 @@ class WarrenAnalyzer {
       else scoreAttendu = '0-2';
       
       raisons = [
-        `${team2.teamName} forme nettement supérieure`,
-        `Qualité: ${team2GoodPerfs} bonnes perf vs ${team1BadPerfs} mauvaises perf (adv)`,
-        `Bilan: ${team2Wins}W-${team2Losses}L vs ${team1Wins}W-${team1Losses}L`
+        `${team2.teamName} forme nettement supérieure (${team2.scoreForme}/10 vs ${team1.scoreForme}/10)`,
+        `Qualité récente démontrée sur 7 matchs`,
+        `Écart de ${Math.abs(formeGap).toFixed(1)} points de forme`
       ];
     }
-    // RÈGLE 3 : DIFFÉRENCE MOYENNE (écart 2-3)
-    else if (team1QualityScore - team2QualityScore >= 2) {
+    // RÈGLE 3 : ÉCART MOYEN (1.5 - 3 points)
+    else if (formeGap >= 1.5) {
       prono1x2 = '1X';
       confidence = 6;
       
@@ -290,12 +299,12 @@ class WarrenAnalyzer {
       else scoreAttendu = '1-0';
       
       raisons = [
-        `${team1.teamName} légèrement meilleur`,
-        `Forme: ${team1Wins}W vs ${team2Wins}W (${team1GoodPerfs} bonnes perf)`,
-        `Sécurité avec double chance`
+        `${team1.teamName} légèrement meilleur (${team1.scoreForme}/10 vs ${team2.scoreForme}/10)`,
+        `Avantage modéré, prudence recommandée`,
+        `Double chance pour sécurité`
       ];
     }
-    else if (team2QualityScore - team1QualityScore >= 2) {
+    else if (formeGap <= -1.5) {
       prono1x2 = 'X2';
       confidence = 6;
       
@@ -304,20 +313,20 @@ class WarrenAnalyzer {
       else scoreAttendu = '0-1';
       
       raisons = [
-        `${team2.teamName} légèrement meilleur`,
-        `Forme: ${team2Wins}W vs ${team1Wins}W (${team2GoodPerfs} bonnes perf)`,
-        `Sécurité avec double chance`
+        `${team2.teamName} légèrement meilleur (${team2.scoreForme}/10 vs ${team1.scoreForme}/10)`,
+        `Avantage modéré, prudence recommandée`,
+        `Double chance pour sécurité`
       ];
     }
-    // RÈGLE 4 : ÉQUILIBRÉ (écart < 2)
+    // RÈGLE 4 : ÉQUILIBRÉ (< 1.5 points)
     else {
       prono1x2 = 'X';
       confidence = 5;
       scoreAttendu = bttsYes ? '1-1' : '0-0';
       raisons = [
-        `Forme équilibrée (${team1Wins}W vs ${team2Wins}W)`,
-        `Qualité similaire (${team1GoodPerfs} vs ${team2GoodPerfs} bonnes perf)`,
-        `Match indécis`
+        `Forme équilibrée (${team1.scoreForme}/10 vs ${team2.scoreForme}/10)`,
+        `Aucune équipe ne se démarque clairement`,
+        `Match très indécis`
       ];
     }
     
@@ -331,167 +340,76 @@ class WarrenAnalyzer {
       score_attendu: scoreAttendu,
       scores_alternatifs: this.alternativeScores(team1, team2, prono1x2, bttsYes, overYes),
       raisons: raisons,
-      risques: this.generateRisks(team1, team2, eloGap)
+      risques: this.generateRisks(team1, team2, eloGap, formeGap)
     };
   }
 
-  formatEventsForWarren(events) {
-    if (!events) return {};
-    
-    const formatted = {};
-    
-    if (events.penalties && events.penalties.length > 0) {
-      const pen = events.penalties[0];
-      formatted.penalty = {
-        isTeam: pen.team === 'team' || pen.isTeam === true,
-        minute: pen.minute?.toString() || "0"
-      };
-      formatted.penaltyOnlyGoal = pen.isOnlyGoal || false;
-    }
-    
-    if (events.redCards && events.redCards.length > 0) {
-      const red = events.redCards[0];
-      formatted.redCard = {
-        isTeam: red.team === 'team' || red.isTeam === true,
-        minute: parseInt(red.minute) || 0
-      };
-    }
-    
-    if (events.goals90Plus && events.goals90Plus.length > 0) {
-      const goal90 = events.goals90Plus[0];
-      formatted.goal90Plus = {
-        isTeam: goal90.team === 'team' || goal90.isTeam === true,
-        minute: goal90.minute?.toString() || "90+",
-        scoreBefore: goal90.scoreBefore || null
-      };
-    }
-    
-    return formatted;
-  }
-
-  estimateScore(team1, team2, stats) {
-    const avgGoals1 = team1.matches.reduce((sum, m) => sum + m.score.team, 0) / team1.matches.length;
-    const avgGoals2 = team2.matches.reduce((sum, m) => sum + m.score.team, 0) / team2.matches.length;
-    
-    return `${Math.round(avgGoals1)}-${Math.round(avgGoals2)}`;
-  }
-
   alternativeScores(team1, team2, prono1x2, bttsYes, overYes) {
-    const eloGap = this.eloEngine.calculateGap(team1.elo, team2.elo);
-    const isFavorite = team1.elo > team2.elo;
-    
     let alternatives = [];
     
-    // Si prono = '1' (Team1 gagne)
     if (prono1x2 === '1') {
-      if (bttsYes && overYes) {
-        alternatives = ['3-1', '3-2', '4-2'];
-      } else if (bttsYes && !overYes) {
-        // IMPOSSIBLE de gagner avec BTTS Oui + Under → seul 1-1 existe
-        alternatives = ['1-1', '1-0', '2-0']; // Mettre des scores réalistes même si contradiction
-      } else if (!bttsYes && overYes) {
-        alternatives = ['3-0', '4-0', '5-0'];
-      } else {
-        alternatives = ['2-0', '1-0', '3-0'];
-      }
+      if (bttsYes && overYes) alternatives = ['3-1', '3-2', '4-2'];
+      else if (bttsYes && !overYes) alternatives = ['2-1', '1-1', '2-0'];
+      else if (!bttsYes && overYes) alternatives = ['3-0', '4-0', '5-0'];
+      else alternatives = ['2-0', '1-0', '3-0'];
     }
-    // Si prono = '2' (Team2 gagne)
     else if (prono1x2 === '2') {
-      if (bttsYes && overYes) {
-        alternatives = ['1-3', '2-3', '2-4'];
-      } else if (bttsYes && !overYes) {
-        // IMPOSSIBLE de gagner avec BTTS Oui + Under → seul 1-1 existe
-        alternatives = ['1-1', '0-1', '0-2']; // Mettre des scores réalistes même si contradiction
-      } else if (!bttsYes && overYes) {
-        alternatives = ['0-3', '0-4', '0-5'];
-      } else {
-        alternatives = ['0-2', '0-1', '0-3'];
-      }
+      if (bttsYes && overYes) alternatives = ['1-3', '2-3', '2-4'];
+      else if (bttsYes && !overYes) alternatives = ['1-2', '1-1', '0-2'];
+      else if (!bttsYes && overYes) alternatives = ['0-3', '0-4', '0-5'];
+      else alternatives = ['0-2', '0-1', '0-3'];
     }
-    // Si prono = '1X' (Team1 favori mais peut nul)
     else if (prono1x2 === '1X') {
-      if (bttsYes && overYes) {
-        alternatives = ['2-1', '1-1', '3-2'];
-      } else if (bttsYes && !overYes) {
-        // Seul 1-1 est possible avec BTTS Oui + Under
-        alternatives = ['1-1', '1-0', '2-1'];
-      } else if (!bttsYes && overYes) {
-        alternatives = ['3-0', '1-0', '4-0'];
-      } else {
-        alternatives = ['1-0', '0-0', '2-0'];
-      }
+      if (bttsYes && overYes) alternatives = ['2-1', '1-1', '3-2'];
+      else if (bttsYes && !overYes) alternatives = ['1-1', '1-0', '2-1'];
+      else if (!bttsYes && overYes) alternatives = ['3-0', '1-0', '4-0'];
+      else alternatives = ['1-0', '0-0', '2-0'];
     }
-    // Si prono = 'X2' (Team2 favori mais peut nul)
     else if (prono1x2 === 'X2') {
-      if (bttsYes && overYes) {
-        alternatives = ['1-2', '1-1', '2-3'];
-      } else if (bttsYes && !overYes) {
-        // Seul 1-1 est possible avec BTTS Oui + Under
-        alternatives = ['1-1', '0-1', '1-2'];
-      } else if (!bttsYes && overYes) {
-        alternatives = ['0-3', '0-1', '0-4'];
-      } else {
-        alternatives = ['0-1', '0-0', '0-2'];
-      }
+      if (bttsYes && overYes) alternatives = ['1-2', '1-1', '2-3'];
+      else if (bttsYes && !overYes) alternatives = ['1-1', '0-1', '1-2'];
+      else if (!bttsYes && overYes) alternatives = ['0-3', '0-1', '0-4'];
+      else alternatives = ['0-1', '0-0', '0-2'];
     }
-    // Si prono = 'X' (Nul)
     else {
-      if (bttsYes && overYes) {
-        alternatives = ['2-2', '3-3', '1-1'];
-      } else if (bttsYes && !overYes) {
-        // Seul 1-1 est possible avec BTTS Oui + Under
-        alternatives = ['1-1', '0-0', '2-2'];
-      } else if (!bttsYes && overYes) {
-        alternatives = ['0-0', '3-3', '2-2'];
-      } else {
-        alternatives = ['0-0', '1-1', '1-0'];
-      }
+      if (bttsYes && overYes) alternatives = ['2-2', '3-3', '1-1'];
+      else if (bttsYes && !overYes) alternatives = ['1-1', '0-0', '2-2'];
+      else if (!bttsYes && overYes) alternatives = ['0-0', '3-3', '2-2'];
+      else alternatives = ['0-0', '1-1', '1-0'];
     }
     
     return alternatives.slice(0, 3);
   }
 
-  generateReasons(team1, team2, stats, eloGap) {
-    const reasons = [];
+  generateRisks(team1, team2, eloGap, formeGap) {
+    const risks = [];
     
-    if (team1.fatigue) reasons.push(`${team1.teamName} fatigué`);
-    if (team2.fatigue) reasons.push(`${team2.teamName} fatigué`);
-    
-    if (team1.formeSummary.quality === 'Excellente') {
-      reasons.push(`${team1.teamName} en excellente forme`);
-    }
-    if (team2.formeSummary.quality === 'Excellente') {
-      reasons.push(`${team2.teamName} en excellente forme`);
+    if (Math.abs(formeGap) < 1.5) {
+      risks.push('Forme très équilibrée, match incertain');
     }
     
-    if (stats.over25.tendency === 'Over 2.5') {
-      reasons.push(`Tendance Over (${stats.over25.team1.percentage}% / ${stats.over25.team2.percentage}%)`);
+    if (eloGap > 100) {
+      risks.push(`Écart ELO notable (+${Math.abs(eloGap)}) peut peser`);
     }
     
-    if (reasons.length < 3) {
-      reasons.push(`Écart ELO ${eloGap} points`);
+    if (team1.fatigue || team2.fatigue) {
+      risks.push('Fatigue peut bouleverser les prévisions');
     }
     
-    return reasons.slice(0, 3);
-  }
-
-  generateRisks(team1, team2, eloGap) {
-    return [
-      eloGap > 100 ? `Écart qualité (+${eloGap} ELO)` : 'Équipes de niveau proche',
-      'Facteur domicile peut influencer'
-    ];
+    if (risks.length < 2) {
+      risks.push('Facteur domicile peut influencer');
+    }
+    
+    return risks.slice(0, 2);
   }
 
   findElo(teamName) {
-    // eloData est déjà importé en haut du fichier
     const normalized = teamName.trim();
     
-    // Recherche exacte
     if (eloData[normalized]) {
       return eloData[normalized];
     }
     
-    // Recherche insensible à la casse
     for (const [team, elo] of Object.entries(eloData)) {
       if (team.toLowerCase() === normalized.toLowerCase()) {
         return elo;
