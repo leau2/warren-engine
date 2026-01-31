@@ -19,13 +19,13 @@ const WarrenEngineApp = () => {
 
     try {
       const response = await fetch('/api/analyze', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    match: matchInput,
-    matchDate: matchDate ? `${matchDate}T12:00:00Z` : null
-  })
-});
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          match: matchInput,
+          matchDate: matchDate ? `${matchDate}T12:00:00Z` : null
+        })
+      });
 
       const data = await response.json();
 
@@ -79,13 +79,13 @@ const WarrenEngineApp = () => {
         <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Score attendu :</div>
         <div style={{ fontSize: '1.25rem' }}>{verdict.score_attendu}</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.25rem' }}>
-          Alternatifs : {verdict.scores_alternatifs.join(', ')}
+          Alternatifs : {verdict.scores_alternatifs && verdict.scores_alternatifs.join(', ')}
         </div>
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>3 Raisons :</div>
-        {verdict.raisons.map((r, i) => (
+        {verdict.raisons && verdict.raisons.map((r, i) => (
           <div key={i} style={{ fontSize: '0.875rem', marginLeft: '1rem', marginTop: '0.25rem' }}>
             {i + 1}. {r}
           </div>
@@ -94,7 +94,7 @@ const WarrenEngineApp = () => {
 
       <div>
         <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>2 Risques :</div>
-        {verdict.risques.map((r, i) => (
+        {verdict.risques && verdict.risques.map((r, i) => (
           <div key={i} style={{ fontSize: '0.875rem', marginLeft: '1rem', marginTop: '0.25rem' }}>
             {i + 1}. {r}
           </div>
@@ -116,14 +116,14 @@ const WarrenEngineApp = () => {
       </h3>
       
       <div style={{ marginBottom: '1rem' }}>
-        <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
-          Rating : {team.rating.label}
+        <div style={{ fontSize: '0.875rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+          Rating : {team.rating && team.rating.label}
         </div>
         <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
           Bilan : {team.record.total.v}V {team.record.total.n}N {team.record.total.d}D
         </div>
         <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-          Forme : {team.formeSummary.quality}
+          Forme : {team.formeSummary && team.formeSummary.quality} ({team.scoreForme}/10)
           {team.fatigue && <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>
             ⚠️ FATIGUE ({team.fatigue.matchCount} matchs en {team.fatigue.period})
           </span>}
@@ -134,136 +134,126 @@ const WarrenEngineApp = () => {
         <div style={{ fontWeight: '600', fontSize: '0.875rem', marginBottom: '0.75rem', color: '#cbd5e1' }}>
           Derniers matchs :
         </div>
-        {team.matches.slice(0, 7).map((match, i) => (
-  <div key={i} style={{
-    fontSize: '0.8rem',
-    padding: '0.75rem',
-    background: 'rgba(0,0,0,0.2)',
-    borderRadius: '0.5rem',
-    marginBottom: '0.5rem'
-  }}>
-    <div style={{ marginBottom: '0.5rem' }}>
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <span style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-      vs {match.opponent} (ELO {match.opponentElo})
-    </span>
-    <span style={{ 
-      fontSize: '1rem', 
-      fontWeight: '700',
-      color: match.result === 'victoire' ? '#10b981' : match.result === 'defaite' ? '#ef4444' : '#f59e0b'
-    }}>
-      {match.result === 'victoire' ? '✅' : match.result === 'defaite' ? '❌' : '⚖️'}
-    </span>
-  </div>
-  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
-    {match.location} • {team.teamName} {match.score.team} - {match.score.opponent} {match.opponent}
-  </div>
-</div>
-    
-    <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
-      {match.performance.stars} {match.performance.label} - Écart {match.eloGap}
-    </div>
-    
-    {/* TOUS LES BUTS */}
-    {match.events.allGoals && match.events.allGoals.length > 0 && (
-      <div style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
-        <div style={{ color: '#10b981', fontWeight: '600' }}>⚽ Buts :</div>
-        {match.events.allGoals.map((goal, idx) => (
-          <div key={idx} style={{ color: '#cbd5e1', marginLeft: '0.5rem' }}>
-            • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent}
-            {goal.detail && goal.detail !== 'Normal Goal' && ` (${goal.detail})`}
-          </div>
-        ))}
-      </div>
-    )}
-    
-    {/* PENALTIES */}
-    {match.events.penalties && match.events.penalties.length > 0 && (
-      <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
-        <div style={{ color: '#fbbf24', fontWeight: '600' }}>🟡 Penalties :</div>
-        {match.events.penalties.map((pen, idx) => (
-          <div key={idx} style={{ color: '#fbbf24', marginLeft: '0.5rem' }}>
-            • {pen.minute}' - {pen.isTeam ? team.teamName : match.opponent} ({pen.player})
-          </div>
-        ))}
-      </div>
-    )}
-    
-    {/* CARTONS ROUGES */}
-    {match.events.redCards && match.events.redCards.length > 0 && (
-      <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
-        <div style={{ color: '#ef4444', fontWeight: '600' }}>🔴 Cartons rouges :</div>
-        {match.events.redCards.map((red, idx) => (
-          <div key={idx} style={{ color: '#ef4444', marginLeft: '0.5rem' }}>
-            • {red.minute}' - {red.isTeam ? team.teamName : match.opponent} ({red.player})
-          </div>
-        ))}
-      </div>
-    )}
+        {team.matches && team.matches.slice(0, 7).map((match, i) => (
+          <div key={i} style={{
+            fontSize: '0.8rem',
+            padding: '0.75rem',
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: '0.5rem',
+            marginBottom: '0.5rem'
+          }}>
+            {/* HEADER : opponent + résultat */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: '600', fontSize: '0.85rem' }}>
+                  vs {match.opponent} (ELO {match.opponentElo})
+                </span>
+                <span style={{ 
+                  fontSize: '1rem', 
+                  fontWeight: '700',
+                  color: match.result === 'victoire' ? '#10b981' : match.result === 'defaite' ? '#ef4444' : '#f59e0b'
+                }}>
+                  {match.result === 'victoire' ? '✅' : match.result === 'defaite' ? '❌' : '⚖️'}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                {match.location} • {team.teamName} {match.score.team} - {match.score.opponent} {match.opponent}
+              </div>
+            </div>
 
-    {/* BUTS REFUSÉS */}
-  {match.events.disallowedGoals && match.events.disallowedGoals.length > 0 && (
-    <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
-      <div style={{ color: '#f59e0b', fontWeight: '600' }}>🚫 Buts refusés (VAR) :</div>
-      {match.events.disallowedGoals.map((goal, idx) => (
-        <div key={idx} style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>
-          • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent} ({goal.player}) - {goal.reason}
-        </div>
-      ))}
-    </div>
-  )}
-    
-    {/* BUTS 90'+ */}
-    {match.events.goals90Plus && match.events.goals90Plus.length > 0 && (
-      <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
-        <div style={{ color: '#a78bfa', fontWeight: '600' }}>⚡ Buts après 90' :</div>
-        {match.events.goals90Plus.map((goal, idx) => (
-          <div key={idx} style={{ color: '#a78bfa', marginLeft: '0.5rem' }}>
-            • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent}
+            {/* NOUVELLE QUALIFICATION Warren 2.0 */}
+            {match.qualification && (
+              <div style={{ 
+                color: '#cbd5e1', 
+                fontSize: '0.75rem',
+                padding: '0.35rem 0.5rem',
+                background: 'rgba(16, 185, 129, 0.15)',
+                borderRadius: '0.25rem',
+                marginBottom: '0.35rem',
+                border: '1px solid rgba(16, 185, 129, 0.2)'
+              }}>
+                📋 {match.qualification.qualification}
+                <span style={{ color: '#64748b', marginLeft: '0.5rem' }}>
+                  — {match.qualification.explication}
+                </span>
+              </div>
+            )}
+
+            {/* Ancienne perf (étoiles) */}
+            {match.performance && (
+              <div style={{ color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                {match.performance.stars} {match.performance.label} — Écart ELO {match.eloGap}
+              </div>
+            )}
+
+            {/* TOUS LES BUTS */}
+            {match.events && match.events.allGoals && match.events.allGoals.length > 0 && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.75rem' }}>
+                <div style={{ color: '#10b981', fontWeight: '600' }}>⚽ Buts :</div>
+                {match.events.allGoals.map((goal, idx) => (
+                  <div key={idx} style={{ color: '#cbd5e1', marginLeft: '0.5rem' }}>
+                    • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent}
+                    {goal.detail && goal.detail !== 'Normal Goal' && ` (${goal.detail})`}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* PENALTIES */}
+            {match.events && match.events.penalties && match.events.penalties.length > 0 && (
+              <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+                <div style={{ color: '#fbbf24', fontWeight: '600' }}>🟡 Penalties :</div>
+                {match.events.penalties.map((pen, idx) => (
+                  <div key={idx} style={{ color: '#fbbf24', marginLeft: '0.5rem' }}>
+                    • {pen.minute}' - {pen.isTeam ? team.teamName : match.opponent}
+                    {pen.player && ` (${pen.player})`}
+                    {pen.decisive && ' ⭐ Décisif'}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* CARTONS ROUGES */}
+            {match.events && match.events.redCards && match.events.redCards.length > 0 && (
+              <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+                <div style={{ color: '#ef4444', fontWeight: '600' }}>🔴 Cartons rouges :</div>
+                {match.events.redCards.map((red, idx) => (
+                  <div key={idx} style={{ color: '#ef4444', marginLeft: '0.5rem' }}>
+                    • {red.minute}' - {red.isTeam ? team.teamName : match.opponent}
+                    {red.player && ` (${red.player})`}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* BUTS REFUSÉS */}
+            {match.events && match.events.disallowedGoals && match.events.disallowedGoals.length > 0 && (
+              <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+                <div style={{ color: '#f59e0b', fontWeight: '600' }}>🚫 Buts refusés (VAR) :</div>
+                {match.events.disallowedGoals.map((goal, idx) => (
+                  <div key={idx} style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>
+                    • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent}
+                    {goal.player && ` (${goal.player})`}
+                    {goal.reason && ` - ${goal.reason}`}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* BUTS 90'+ */}
+            {match.events && match.events.goals90Plus && match.events.goals90Plus.length > 0 && (
+              <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+                <div style={{ color: '#a78bfa', fontWeight: '600' }}>⚡ Buts après 90' :</div>
+                {match.events.goals90Plus.map((goal, idx) => (
+                  <div key={idx} style={{ color: '#a78bfa', marginLeft: '0.5rem' }}>
+                    • {goal.minute}' - {goal.isTeam ? team.teamName : match.opponent}
+                    {goal.decisive && ' ⭐ Décisif'}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
-      </div>
-    )}
-    
-    {/* ANALYSE BIAIS (messages Warren) */}
-    {match.biases.penalty && (
-      <div style={{ 
-        color: match.biases.penalty.severity.includes('NEGATIF') ? '#fbbf24' : '#10b981', 
-        fontSize: '0.75rem', 
-        marginTop: '0.5rem',
-        padding: '0.5rem',
-        background: 'rgba(0,0,0,0.2)',
-        borderRadius: '0.25rem'
-      }}>
-        💬 {match.biases.penalty.message}
-      </div>
-    )}
-    {match.biases.redCard && (
-      <div style={{ 
-        color: match.biases.redCard.severity.includes('NEGATIF') ? '#ef4444' : '#10b981', 
-        fontSize: '0.75rem', 
-        marginTop: '0.25rem',
-        padding: '0.5rem',
-        background: 'rgba(0,0,0,0.2)',
-        borderRadius: '0.25rem'
-      }}>
-        💬 {match.biases.redCard.message}
-      </div>
-    )}
-    {match.biases.goal90 && (
-      <div style={{ 
-        color: match.biases.goal90.severity.includes('NEGATIF') ? '#a78bfa' : '#10b981', 
-        fontSize: '0.75rem', 
-        marginTop: '0.25rem',
-        padding: '0.5rem',
-        background: 'rgba(0,0,0,0.2)',
-        borderRadius: '0.25rem'
-      }}>
-        💬 {match.biases.goal90.message}
-      </div>
-    )}
-  </div>
-))}
       </div>
     </div>
   );
@@ -327,13 +317,13 @@ const WarrenEngineApp = () => {
             fontSize: '0.875rem',
             fontWeight: '600'
           }}>
-            ⚡ WARREN ENGINE v1.0
+            ⚡ WARREN ENGINE v2.0
           </div>
           <h1 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '0.5rem' }}>
             Analyse Football Autonome
           </h1>
           <p style={{ fontSize: '1.125rem', color: '#94a3b8' }}>
-            794 équipes ELO chargées • Propulsé par API-Football • Logique Warren codée
+            794 équipes ELO chargées • Propulsé par API-Football • Logique Warren 2.0
           </p>
         </div>
 
@@ -381,40 +371,40 @@ const WarrenEngineApp = () => {
           </div>
 
           {/* Champ Date */}
-<div style={{ marginBottom: '1.5rem' }}>
-  <label style={{
-    display: 'block',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    marginBottom: '0.75rem',
-    color: '#cbd5e1'
-  }}>
-    📅 Date du match (optionnel)
-  </label>
-  <input
-    type="date"
-    value={matchDate}
-    onChange={(e) => setMatchDate(e.target.value)}
-    disabled={isAnalyzing}
-    style={{
-      width: '100%',
-      padding: '1rem',
-      fontSize: '1rem',
-      background: 'rgba(15, 23, 42, 0.8)',
-      border: '2px solid rgba(16, 185, 129, 0.5)',
-      borderRadius: '0.75rem',
-      color: '#e2e8f0',
-      outline: 'none'
-    }}
-  />
-  <div style={{ 
-    fontSize: '0.75rem', 
-    color: '#64748b', 
-    marginTop: '0.5rem' 
-  }}>
-    💡 Laissez vide pour un match à venir. Remplissez pour analyser un match passé.
-  </div>
-</div>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              marginBottom: '0.75rem',
+              color: '#cbd5e1'
+            }}>
+              📅 Date du match (optionnel)
+            </label>
+            <input
+              type="date"
+              value={matchDate}
+              onChange={(e) => setMatchDate(e.target.value)}
+              disabled={isAnalyzing}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1rem',
+                background: 'rgba(15, 23, 42, 0.8)',
+                border: '2px solid rgba(16, 185, 129, 0.5)',
+                borderRadius: '0.75rem',
+                color: '#e2e8f0',
+                outline: 'none'
+              }}
+            />
+            <div style={{ 
+              fontSize: '0.75rem', 
+              color: '#64748b', 
+              marginTop: '0.5rem' 
+            }}>
+              💡 Laissez vide pour un match à venir. Remplissez pour analyser un match passé.
+            </div>
+          </div>
         
           <button
             onClick={analyzeMatch}
