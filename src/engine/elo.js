@@ -214,7 +214,7 @@ export default {
   "Defensa y Justicia": 1458,
   "Defensor Sporting": 1451,
   "Dempo SC": 1430,
-  "Deportivo Alaves": 1571,
+  "Alaves": 1571,
   "Deportivo Cuenca": 1469,
   "Deportivo Heredia": 1421,
   "Deportivo La Coruña": 1486,
