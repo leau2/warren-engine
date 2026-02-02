@@ -57,7 +57,7 @@ class EloEngine {
           qualification = 'Petite victoire';
           impactForme = 'OK';
           explication = `Victoire avec avantage (${this.getAdvantageText(rougeImpactant, penaltyDecisif, but90Decisif)})`;
-        } else if (Math.abs(eloGap) >= 200) {
+        } else if (Math.abs(eloGap) >= 400) {
           qualification = 'Très petite victoire';
           impactForme = 'OK';
           explication = `Victoire attendue contre équipe bien plus faible (${Math.abs(eloGap)} ELO)`;
