@@ -123,6 +123,7 @@ const TEAM_NAMES = {
   'cologne': '1. FC Köln',
   'koln': '1. FC Köln',
   'werder': 'Werder Bremen',
+  'werder bremen': 'Werder Bremen',
   'bremen': 'Werder Bremen',
   'bochum': 'VfL Bochum',
   'augsburg': 'FC Augsburg',
