@@ -193,6 +193,7 @@ const TEAM_NAMES = {
   'sparta': 'Sparta Rotterdam',
   'sparta rotterdam': 'Sparta Rotterdam',
   'fortuna sittard': 'Fortuna Sittard',
+  'sittard': 'Fortuna Sittard',
   'volendam': 'Volendam',
   'excelsior': 'Excelsior',
   'zwolle': 'PEC Zwolle',
