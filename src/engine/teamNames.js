@@ -91,6 +91,7 @@ const TEAM_NAMES = {
   'osasuna': 'Osasuna',
   'rayo': 'Rayo Vallecano',
   'rayo vallecano': 'Rayo Vallecano',
+  'vallecano': 'Rayo Vallecano',
   'celta': 'Celta Vigo',
   'celta vigo': 'Celta Vigo',
   'mallorca': 'Mallorca',
