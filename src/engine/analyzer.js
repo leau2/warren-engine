@@ -409,8 +409,8 @@ class WarrenAnalyzer {
       }
     }
     
-    console.warn(`ELO non trouvé pour ${teamName}, utilise 1700 par défaut`);
-    return 1700;
+    console.warn(`ELO non trouvé pour ${teamName}, utilise 1400 par défaut`);
+    return 1400;
   }
 }
 
