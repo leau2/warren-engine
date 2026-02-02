@@ -56,7 +56,7 @@ const TEAM_NAMES = {
   'reims': 'Reims',
   'toulouse': 'Toulouse',
   'montpellier': 'Montpellier',
-  'brest': 'Brest',
+  'brest': 'Stade Brestois 29',
   'angers': 'Angers',
   'le havre': 'Le Havre',
   'lorient': 'Lorient',
