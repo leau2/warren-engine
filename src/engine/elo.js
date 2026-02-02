@@ -133,7 +133,7 @@ export default {
   "Braga": 1686,
   "Brasilia": 1459,
   "Brentford": 1786,
-  "Brest": 1606,
+  "Stade Brestois 29": 1606,
   "Brighton": 1788,
   "Brøndby": 1488,
   "Budućnost": 1460,
