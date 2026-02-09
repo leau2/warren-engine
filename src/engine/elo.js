@@ -449,7 +449,7 @@ export default {
   "Lille": 1709,
   "Linfield": 1457,
   "Litex Lovech": 1573,
-  "Liverpool": 1494,
+  "Liverpool": 1879,
   "Lokomotiv Astana": 1537,
   "Lokomotiv Moskva": 1544,
   "Lokomotiv Plovdiv": 1407,
